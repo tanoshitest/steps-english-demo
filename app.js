@@ -1445,20 +1445,35 @@ function sayBtn(text, label = "🔊") {
 
 function renderVideo(video, note = "") {
   if (!video) return "";
+  // Chưa bấm thì chỉ có ảnh bìa + nút play của mình, không chữ nghĩa gì của
+  // YouTube. Bấm play mới nạp iframe, nên trang cũng nhẹ hơn.
   return `
     <div class="media-card">
       <div class="media-frame">
-        <iframe src="https://www.youtube-nocookie.com/embed/${escapeHtml(video.id)}?rel=0&amp;modestbranding=1"
-          title="${escapeHtml(video.title)}" loading="lazy" allowfullscreen
-          allow="accelerometer; encrypted-media; picture-in-picture"></iframe>
-      </div>
-      <div class="media-meta">
-        <div><strong>${escapeHtml(video.title)}</strong><span class="muted"> · ${escapeHtml(video.by)}</span></div>
-        <a class="media-link" href="https://www.youtube.com/watch?v=${escapeHtml(video.id)}" target="_blank" rel="noopener">Mở trên YouTube ↗</a>
+        <img class="media-poster" src="https://i.ytimg.com/vi/${escapeHtml(video.id)}/hqdefault.jpg"
+          alt="" decoding="async">
+        <button class="media-play" data-action="play-video" data-vid="${escapeHtml(video.id)}"
+          aria-label="Phát video: ${escapeHtml(video.title)}"><span></span></button>
       </div>
       ${note ? `<div class="muted media-note">${escapeHtml(note)}</div>` : ""}
     </div>
   `;
+}
+
+// Bấm play thì thay ảnh bìa bằng iframe và cho chạy luôn. Đổi thẳng DOM chứ
+// không qua render() — gọi render() là video bị dựng lại từ đầu.
+function playVideo(button) {
+  const frame = button.closest(".media-frame");
+  if (!frame) return;
+  const params = [
+    "autoplay=1", "rel=0", "modestbranding=1",
+    "iv_load_policy=3", // tắt chú thích nổi
+    "playsinline=1", "color=white",
+  ].join("&amp;");
+  frame.classList.add("playing");
+  frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${escapeHtml(button.dataset.vid)}?${params}"
+    title="Video bài học" allowfullscreen
+    allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
 }
 
 // Một câu hỏi trắc nghiệm: bấm chọn là biết đúng/sai ngay, có tiếng phản hồi.
@@ -2563,6 +2578,10 @@ function bindEvents() {
       return;
     }
     /* --- Trang học tương tác của một buổi --- */
+    if (action === "play-video") {
+      playVideo(target);
+      return;
+    }
     if (action === "say") {
       speak(target.dataset.text);
       return;

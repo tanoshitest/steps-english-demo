@@ -2096,25 +2096,58 @@ body.is-admin .logout-btn {
   border: 0;
 }
 
-.media-meta {
+/* Ảnh bìa + nút play của mình, đè kín khung khi chưa bấm. */
+.media-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-play {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  font-size: 13px;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(6, 18, 40, .28);
+  transition: background .18s ease;
 }
 
-.media-link {
-  color: var(--blue);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
+.media-play:hover { background: rgba(6, 18, 40, .12); }
+
+/* Tam giác play dựng bằng border, không cần ảnh. */
+.media-play span {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 8px 24px rgba(6, 18, 40, .35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .18s ease;
 }
 
-.media-link:hover { text-decoration: underline; }
-.media-note { padding: 0 12px 10px; font-size: 12px; }
+.media-play span::before {
+  content: "";
+  margin-left: 5px;
+  border-style: solid;
+  border-width: 12px 0 12px 20px;
+  border-color: transparent transparent transparent var(--blue);
+}
+
+.media-play:hover span { transform: scale(1.08); }
+.media-play:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
+
+.media-note { padding: 10px 12px; font-size: 12px; }
 
 /* --- Nút nghe đọc mẫu --- */
 .say-btn {

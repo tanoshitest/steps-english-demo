@@ -926,7 +926,7 @@ function renderNav() {
   const nav = el("nav");
   if (state.currentRole === "student") {
     const navItems = [
-      { id: "profile", title: "Thông tin của tôi", desc: "Hồ sơ học viên và tiến độ" },
+      { id: "profile", title: "Thông tin của tôi", desc: "" },
       { id: "roadmap", title: "Roadmap", desc: "" },
     ];
     // Mục nào không có dòng mô tả thì bỏ luôn thẻ div, khỏi chừa dòng trống.

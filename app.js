@@ -903,7 +903,11 @@ function applyShell() {
   document.body.classList.toggle("is-login", isLogin);
   document.body.classList.toggle("is-admin", !isLogin && state.currentRole === "admin");
   const subtitle = el("brandSubtitle");
-  if (subtitle) subtitle.textContent = state.currentRole === "admin" ? "Cổng quản trị" : "Demo khám phá";
+  if (subtitle) {
+    // Bên học sinh không cần dòng phụ; ẩn hẳn cho khỏi chừa khoảng trống.
+    subtitle.textContent = state.currentRole === "admin" ? "Cổng quản trị" : "";
+    subtitle.hidden = !subtitle.textContent;
+  }
   const mark = el("brandMark");
   if (mark) {
     mark.innerHTML = state.currentRole === "admin"
@@ -923,12 +927,13 @@ function renderNav() {
   if (state.currentRole === "student") {
     const navItems = [
       { id: "profile", title: "Thông tin của tôi", desc: "Hồ sơ học viên và tiến độ" },
-      { id: "roadmap", title: "Roadmap", desc: "Chọn chương trình → Day → vào học" },
+      { id: "roadmap", title: "Roadmap", desc: "" },
     ];
+    // Mục nào không có dòng mô tả thì bỏ luôn thẻ div, khỏi chừa dòng trống.
     nav.innerHTML = navItems.map((item) => `
       <button class="nav-item ${item.id === state.activeStudentPage ? "active" : ""}" data-page="${item.id}">
         <div class="nav-title">${item.title}</div>
-        <div class="nav-desc">${item.desc}</div>
+        ${item.desc ? `<div class="nav-desc">${item.desc}</div>` : ""}
       </button>
     `).join("");
     return;

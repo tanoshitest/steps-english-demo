@@ -247,7 +247,7 @@ const programList = ["Movers", "Flyers", "2019 Khóa 1", "Seed 39 Khóa 2"];
 
 const lessonOrder = Object.keys(lessonCatalog);
 
-const ADMIN_PAGES = ["dashboard", "users", "lessons", "grading", "fees", "journey"];
+const ADMIN_PAGES = ["dashboard", "users", "lessons", "grading", "journey"];
 
 const stateDefaults = {
   currentRole: "student",
@@ -287,7 +287,6 @@ const adminUi = {
   roleFilter: "all",
   programFilter: "all",
   gradeFilter: "all",
-  feeFilter: "all",
   selectedGrade: "",
   selectedLesson: "",
   // Màn "Lộ trình 20 buổi" đang mở form biên soạn hay đang xem.
@@ -324,17 +323,6 @@ const adminGrading = [
   { code: "NOP-115", student: "Khoa Lê", className: "Seed 39 K2 B1", lesson: "Where is it?", type: "Viết", step: "say", submitted: "3 ngày trước", score: "8/10", status: "Đã chấm", statusKey: "done", answer: "The ball is under the table.", comment: "Đúng cấu trúc, viết hoa đầu câu tốt." },
   { code: "NOP-114", student: "Anna Nguyễn", className: "2019 K1 A1", lesson: "Say hello", type: "Nói", step: "speak", submitted: "4 ngày trước", score: "7/10", status: "Cần xem lại", statusKey: "review", answer: "My name Anna.", comment: "Thiếu 'is' trong câu." },
 ];
-
-const adminFees = [
-  { code: "HP-001", student: "Anna Nguyễn", className: "2019 K1 A1", course: "2019 Khóa 1", total: 4800000, paid: 4800000, due: "05/08/2026", method: "Chuyển khoản", status: "Đã đóng", statusKey: "done" },
-  { code: "HP-002", student: "Minh Trần", className: "2019 K1 A1", course: "2019 Khóa 1", total: 4800000, paid: 2400000, due: "20/08/2026", method: "Tiền mặt", status: "Còn nợ", statusKey: "pending" },
-  { code: "HP-003", student: "Lucy Phạm", className: "Movers B1", course: "Movers", total: 6200000, paid: 1500000, due: "01/08/2026", method: "Chuyển khoản", status: "Quá hạn", statusKey: "review" },
-  { code: "HP-004", student: "Khoa Lê", className: "Flyers C1", course: "Flyers", total: 7500000, paid: 7500000, due: "10/08/2026", method: "Chuyển khoản", status: "Đã đóng", statusKey: "done" },
-];
-
-function formatVnd(amount) {
-  return `${Number(amount).toLocaleString("vi-VN")}đ`;
-}
 
 function fixUnitName(name) {
   return lessonCatalog[name] ? name : lessonOrder[0];
@@ -477,37 +465,152 @@ const reflexQuestions = [
   "What's your favourite toy?",
 ];
 
+// Routine chạy mọi buổi. Câu chào và câu phản xạ lấy nguyên trong giáo trình.
 const routineStrands = (reflexUnit) => [
-  { id: "greeting", label: "Greeting & Hello Song", group: "routine", daily: true, detail: "Chào hỏi, điểm danh, hát Hello Song." },
-  { id: "reflex", label: "Phản xạ 8 câu", group: "routine", daily: true, unit: reflexUnit, detail: "Hỏi đáp nhanh, xoay vòng 2 câu mỗi buổi." },
-  { id: "goodbye", label: "Goodbye Song & dặn dò", group: "routine", daily: true, detail: "Hát tạm biệt và giao task về nhà." },
+  {
+    id: "greeting", label: "Greeting & Hello Song", group: "routine", daily: true,
+    detail: "Chào hỏi, điểm danh, hát Hello Song.",
+    words: ["hello", "hi", "teacher", "friend"],
+    sentences: ["Hello! How are you?", "I'm fine, thank you.", "Good morning, teacher."],
+  },
+  {
+    id: "reflex", label: "Phản xạ 8 câu", group: "routine", daily: true, unit: reflexUnit,
+    detail: "Hỏi đáp nhanh, xoay vòng 2 câu mỗi buổi.",
+    sentences: reflexQuestions,
+  },
+  {
+    id: "goodbye", label: "Goodbye Song & dặn dò", group: "routine", daily: true,
+    detail: "Hát tạm biệt và giao task về nhà.",
+    words: ["goodbye", "see you"],
+    sentences: ["Goodbye! See you next time."],
+  },
 ];
 
+// Từ vựng và mẫu câu dưới đây chép đúng theo hai file giáo trình của trung tâm
+// (Chương Trình 2019 Khóa 1 và Chương Trình Seed 39 Khóa 2). Nhờ gắn ở mức
+// strand chứ không phải mức unit, mỗi buổi lấy ra đúng phần của buổi đó nên 20
+// buổi không còn trùng nội dung.
 const spiralPlans = {
   "2019 Khóa 1": {
     sessions: SPIRAL_SESSIONS,
     strands: [
       ...routineStrands("Say hello"),
-      { id: "colors", label: "Màu sắc", group: "topic", unit: "Colours & animals", intro: 2, detail: "Nhận biết và gọi tên 8 màu." },
-      { id: "ph-a", label: "Phonics /a/", group: "phonics", unit: "Phonics group 1", intro: 3, detail: "Âm /a/ — ant, pan." },
-      { id: "animals", label: "Con vật", group: "topic", unit: "Colours & animals", intro: 4, detail: "Bear, bird, duck, horse, frog, cat, dog, sheep, fish." },
-      { id: "story-bear", label: "Story: Brown bear", group: "story", unit: "Colours & animals", intro: 5, detail: "Kể chuyện Brown bear, brown bear theo vòng lặp." },
-      { id: "traffic", label: "Đèn giao thông", group: "topic", unit: "Colours & animals", intro: 6, detail: "Green light - Go / Yellow - Go slowly / Red - Stop." },
-      { id: "ph-i", label: "Phonics /i/", group: "phonics", unit: "Phonics group 1", intro: 7, detail: "Âm /i/ — sit, pin." },
-      { id: "actions", label: "Action verbs: I can ...", group: "topic", unit: "I can do it", intro: 8, detail: "Dance, shake, jump, hop, stomp, clap." },
-      { id: "ph-p", label: "Phonics /p/", group: "phonics", unit: "Phonics group 1", intro: 9, detail: "Âm /p/ — pat, tap." },
-      { id: "ph-s", label: "Phonics /s/", group: "phonics", unit: "Phonics group 1", intro: 11, detail: "Âm /s/ — sat, sit." },
-      { id: "morning", label: "Hoạt động buổi sáng", group: "topic", unit: "My morning", intro: 12, detail: "Wake up, wash my face, eat breakfast, go to school." },
-      { id: "story-morning", label: "Story: In the morning", group: "story", unit: "My morning", intro: 12, detail: "Kể lại một buổi sáng theo tranh." },
-      { id: "items", label: "Đồ dùng cá nhân", group: "topic", unit: "My morning", intro: 13, detail: "Toothbrush, comb, mirror, soap, bowl, spoon." },
-      { id: "ph-n", label: "Phonics /n/", group: "phonics", unit: "Phonics group 1", intro: 14, detail: "Âm /n/ — nose, pin." },
-      { id: "flower", label: "Flower Q&A", group: "topic", unit: "My morning", intro: 15, detail: "Where is the flower? / What color is the flower?" },
-      { id: "body", label: "Bộ phận cơ thể", group: "topic", unit: "Head, shoulders, knees", intro: 16, detail: "This is my head. / These are my shoulders." },
-      { id: "song-head", label: "Song: Head, shoulders, knees", group: "song", unit: "Head, shoulders, knees", intro: 16, detail: "Hát kèm động tác, tăng dần tốc độ." },
-      { id: "ph-t", label: "Phonics /t/", group: "phonics", unit: "Phonics group 1", intro: 17, detail: "Âm /t/ — tin, tap." },
-      { id: "blend", label: "Blending nhóm 1", group: "phonics", unit: "Phonics group 1", intro: 18, detail: "p-a-n → pan, s-i-t → sit." },
-      { id: "clothes", label: "Trang phục: Put on your ...", group: "topic", unit: "Put on your clothes", intro: 19, detail: "Shirt, T-shirt, shoes, hat, jacket, scarf, pants." },
-      { id: "song-shoes", label: "Song: Put on your shoes", group: "song", unit: "Put on your clothes", intro: 19, detail: "Hát và mô phỏng động tác mặc đồ." },
+      {
+        id: "colors", label: "Màu sắc", group: "topic", unit: "Colours & animals", intro: 2,
+        detail: "Nhận biết và gọi tên 8 màu.",
+        words: ["brown", "red", "yellow", "blue", "green", "purple", "white", "black"],
+        sentences: ["What color is it? - It's red.", "It's a blue book.", "I like green."],
+      },
+      {
+        id: "ph-a", label: "Phonics /a/", group: "phonics", unit: "Phonics group 1", intro: 3,
+        detail: "Âm /a/ — ant, pan.", sound: "a", blend: ["pan", "pat", "tap", "ant"],
+      },
+      {
+        id: "animals", label: "Con vật", group: "topic", unit: "Colours & animals", intro: 4,
+        detail: "Bear, bird, duck, horse, frog, cat, dog, sheep, fish.",
+        words: ["bear", "bird", "duck", "horse", "frog", "cat", "dog", "sheep", "fish"],
+        sentences: ["It's a duck.", "I can see a frog.", "What's your favourite animal? - A horse."],
+      },
+      {
+        id: "story-bear", label: "Story: Brown bear", group: "story", unit: "Colours & animals", intro: 5,
+        detail: "Vòng lặp hỏi - đáp: mỗi trang một con vật, một màu.",
+        words: ["brown bear", "red bird", "yellow duck", "blue horse", "green frog"],
+        sentences: ["I can see a brown bear.", "I can see a red bird.", "I can see a yellow duck."],
+      },
+      {
+        id: "traffic", label: "Đèn giao thông", group: "topic", unit: "Colours & animals", intro: 6,
+        detail: "Green light - Go / Yellow - Go slowly / Red - Stop.",
+        words: ["green light", "yellow light", "red light", "go", "stop"],
+        sentences: ["Green light - Go.", "Yellow light - Go slowly.", "Red light - Stop."],
+      },
+      {
+        id: "ph-i", label: "Phonics /i/", group: "phonics", unit: "Phonics group 1", intro: 7,
+        detail: "Âm /i/ — sit, pin.", sound: "i", blend: ["sit", "pin", "tin"],
+      },
+      {
+        id: "actions", label: "Action verbs: I can ...", group: "topic", unit: "I can do it", intro: 8,
+        detail: "Dance, shake, jump, hop, stomp, clap.",
+        words: ["dance", "shake", "jump", "hop", "stomp", "clap"],
+        sentences: ["I can dance.", "I can shake.", "I can jump.", "I can hop.", "I can stomp.", "I can clap."],
+      },
+      {
+        id: "ph-p", label: "Phonics /p/", group: "phonics", unit: "Phonics group 1", intro: 9,
+        detail: "Âm /p/ — pat, tap.", sound: "p", blend: ["pan", "pat", "pin"],
+      },
+      {
+        id: "ph-s", label: "Phonics /s/", group: "phonics", unit: "Phonics group 1", intro: 11,
+        detail: "Âm /s/ — sat, sit.", sound: "s", blend: ["sat", "sit"],
+      },
+      {
+        id: "morning", label: "Hoạt động buổi sáng", group: "topic", unit: "My morning", intro: 12,
+        detail: "Wake up, wash my face, eat breakfast, go to school.",
+        words: ["wake up", "get out of bed", "wash my face", "comb my hair", "eat breakfast", "get dressed", "go to school"],
+        sentences: ["I wake up.", "I wash my face.", "I eat breakfast.", "I go to school."],
+      },
+      {
+        id: "story-morning", label: "Story: In the morning", group: "story", unit: "My morning", intro: 12,
+        detail: "Kể lại một buổi sáng theo tranh.",
+        sentences: ["In the morning, I wake up.", "I get out of bed and wash my face.", "Then I get dressed and go to school."],
+      },
+      {
+        id: "items", label: "Đồ dùng cá nhân", group: "topic", unit: "My morning", intro: 13,
+        detail: "Toothbrush, comb, mirror, soap, bowl, spoon.",
+        words: ["toothbrush", "toothpaste", "comb", "mirror", "soap", "bowl", "spoon"],
+        sentences: ["This is my toothbrush.", "I can see a spoon.", "Where is the soap? - Here."],
+      },
+      {
+        id: "ph-n", label: "Phonics /n/", group: "phonics", unit: "Phonics group 1", intro: 14,
+        detail: "Âm /n/ — nose, pin.", sound: "n", blend: ["pan", "pin", "tin", "ant"],
+      },
+      {
+        id: "flower", label: "Flower Q&A", group: "topic", unit: "My morning", intro: 15,
+        detail: "Where is the flower? / What color is the flower?",
+        words: ["flower", "orange", "pink", "yellow", "blue", "white", "purple", "red"],
+        sentences: [
+          "Where is the flower? - Here.",
+          "What color is the flower? - Pink flower.",
+          "What color is the flower? - Yellow flower.",
+        ],
+      },
+      {
+        id: "body", label: "Bộ phận cơ thể", group: "topic", unit: "Head, shoulders, knees", intro: 16,
+        detail: "This is my head. / These are my shoulders.",
+        words: ["head", "shoulders", "knees", "toes", "nose", "mouth", "eyes", "ears"],
+        sentences: [
+          "This is my head.", "This is my nose.", "This is my mouth.",
+          "These are my shoulders.", "These are my eyes.", "These are my ears.",
+          "These are my knees.", "These are my toes.",
+        ],
+      },
+      {
+        id: "song-head", label: "Song: Head, shoulders, knees", group: "song", unit: "Head, shoulders, knees", intro: 16,
+        detail: "Hát kèm động tác, tăng dần tốc độ.",
+        sentences: ["Head, shoulders, knees and toes.", "Eyes and ears and mouth and nose."],
+      },
+      {
+        id: "ph-t", label: "Phonics /t/", group: "phonics", unit: "Phonics group 1", intro: 17,
+        detail: "Âm /t/ — tin, tap.", sound: "t", blend: ["tap", "tin", "sat", "pat"],
+      },
+      {
+        id: "blend", label: "Blending nhóm 1", group: "phonics", unit: "Phonics group 1", intro: 18,
+        detail: "p-a-n → pan, s-i-t → sit.",
+        letters: ["a", "i", "p", "s", "n", "t"],
+        blend: ["pan", "sat", "sit", "tap", "pat", "pin", "tin", "ant"],
+      },
+      {
+        id: "clothes", label: "Trang phục: Put on your ...", group: "topic", unit: "Put on your clothes", intro: 19,
+        detail: "Shirt, T-shirt, shoes, hat, jacket, scarf, pants.",
+        words: ["shirt", "T-shirt", "shoes", "hat", "jacket", "scarf", "pants"],
+        sentences: [
+          "Put on your shoes.", "Put on your shirt.", "Put on your hat.", "Put on your T-shirt.",
+          "Put on your pants.", "Put on your jacket.", "Put on your scarf.",
+        ],
+      },
+      {
+        id: "song-shoes", label: "Song: Put on your shoes", group: "song", unit: "Put on your clothes", intro: 19,
+        detail: "Hát và mô phỏng động tác mặc đồ.",
+        sentences: ["Put on your shoes, put on your hat."],
+      },
       { id: "review", label: "Review & Show", group: "milestone", fixed: SPIRAL_MILESTONES, detail: "Ôn tổng hợp cả chặng và biểu diễn trước lớp." },
     ],
   },
@@ -515,32 +618,170 @@ const spiralPlans = {
     sessions: SPIRAL_SESSIONS,
     strands: [
       ...routineStrands("Nice to meet you"),
-      { id: "school", label: "Đồ dùng học tập", group: "topic", unit: "My school things", intro: 2, detail: "This is a ruler / crayon / eraser / pen / bag." },
-      { id: "j-s", label: "Jolly /s/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 2, detail: "Nhóm 1 — âm /s/." },
-      { id: "picture", label: "Màu · vị trí · số lượng trong tranh", group: "topic", unit: "My school things", intro: 3, detail: "Khai thác tranh lớp học: mấy cái? màu gì? ở đâu?" },
-      { id: "j-a", label: "Jolly /a/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 4, detail: "Nhóm 1 — âm /a/." },
-      { id: "people", label: "Người trong lớp", group: "topic", unit: "My school things", intro: 4, detail: "She is a teacher. / They are students." },
-      { id: "j-t", label: "Jolly /t/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 5, detail: "Nhóm 1 — âm /t/." },
-      { id: "lunch", label: "Từ vựng bữa trưa", group: "topic", unit: "School lunch", intro: 5, detail: "Sandwich, cookie, orange, yogurt, tomato, carrot." },
-      { id: "j-i", label: "Jolly /i/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 6, detail: "Nhóm 1 — âm /i/." },
-      { id: "taste", label: "The ___ is yummy / crunchy", group: "topic", unit: "School lunch", intro: 6, detail: "I have a ___ for lunch. The ___ is ___." },
-      { id: "song-lunch", label: "Song: I have a sandwich", group: "song", unit: "School lunch", intro: 7, detail: "Hát theo nhịp, thay từ món ăn." },
-      { id: "j-p", label: "Jolly /p/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 8, detail: "Nhóm 1 — âm /p/." },
-      { id: "j-n", label: "Jolly /n/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 9, detail: "Nhóm 1 — âm /n/." },
-      { id: "blend-1", label: "Blending nhóm 1", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 11, detail: "s-a-t → sat, p-i-n → pin." },
-      { id: "body2", label: "My body (2)", group: "topic", unit: "My body parts", intro: 11, detail: "This is my hair/face. / These are my hands/feet." },
-      { id: "j-ck", label: "Jolly /ck/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 12, detail: "Nhóm 2 — âm /ck/." },
-      { id: "toys", label: "Đồ chơi", group: "topic", unit: "My toy box", intro: 13, detail: "Doll, teddy bear, ball, kite, robot, alien, balloon." },
-      { id: "j-e", label: "Jolly /e/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 13, detail: "Nhóm 2 — âm /e/." },
-      { id: "song-toys", label: "Song: My teddy bear", group: "song", unit: "My toy box", intro: 14, detail: "Hát và giới thiệu đồ chơi của mình." },
-      { id: "j-h", label: "Jolly /h/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 15, detail: "Nhóm 2 — âm /h/." },
-      { id: "prep-1", label: "Giới từ in / on / under", group: "topic", unit: "Where is it?", intro: 15, detail: "The dog is in the box / on the table / under the chair." },
-      { id: "j-r", label: "Jolly /r/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 16, detail: "Nhóm 2 — âm /r/." },
-      { id: "j-m", label: "Jolly /m/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 17, detail: "Nhóm 2 — âm /m/." },
-      { id: "prep-2", label: "Giới từ next to / behind / between", group: "topic", unit: "Where is it?", intro: 17, detail: "Next to the wall, in front of / behind the pillow, between." },
-      { id: "j-d", label: "Jolly /d/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 18, detail: "Nhóm 2 — âm /d/." },
-      { id: "where", label: "Where is the ___? mở rộng", group: "topic", unit: "Where is it?", intro: 19, detail: "Ghép giới từ với đồ chơi và đồ dùng học tập." },
-      { id: "blend-2", label: "Blending nhóm 1 + 2", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 19, detail: "d-u-ck → duck, h-e-n → hen." },
+      {
+        id: "school", label: "Đồ dùng học tập", group: "topic", unit: "My school things", intro: 2,
+        detail: "This is a ruler / crayon / eraser / pen / bag.",
+        words: ["ruler", "crayon", "eraser", "pen", "bag", "chair", "table", "pencil", "book", "board"],
+        sentences: [
+          "This is a ruler.", "This is a crayon.", "This is an eraser.", "This is a pen.",
+          "This is a bag.", "This is a chair.", "This is a table.", "This is a pencil.",
+          "This is a book.", "This is a board.",
+        ],
+      },
+      {
+        id: "j-s", label: "Jolly /s/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 2,
+        detail: "Nhóm 1 — âm /s/.", sound: "s", blend: ["sat", "sit"],
+      },
+      {
+        id: "picture", label: "Màu · vị trí · số lượng trong tranh", group: "topic", unit: "My school things", intro: 3,
+        detail: "Khai thác tranh lớp học: mấy cái? màu gì? ở đâu?",
+        words: ["one", "two", "three", "red", "blue", "green", "on", "in", "under"],
+        sentences: [
+          "How many books? - Three books.",
+          "What color is the bag? - It's red.",
+          "Where is the pencil? - On the table.",
+        ],
+      },
+      {
+        id: "j-a", label: "Jolly /a/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 4,
+        detail: "Nhóm 1 — âm /a/.", sound: "a", blend: ["sat", "pan", "tap"],
+      },
+      {
+        id: "people", label: "Người trong lớp", group: "topic", unit: "My school things", intro: 4,
+        detail: "She is a teacher. / They are students.",
+        words: ["teacher", "student", "students", "classroom", "friend"],
+        sentences: ["She is a teacher.", "They are students.", "This is a classroom."],
+      },
+      {
+        id: "j-t", label: "Jolly /t/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 5,
+        detail: "Nhóm 1 — âm /t/.", sound: "t", blend: ["tap", "tin", "pat"],
+      },
+      {
+        id: "lunch", label: "Từ vựng bữa trưa", group: "topic", unit: "School lunch", intro: 5,
+        detail: "Sandwich, cookie, orange, yogurt, tomato, carrot.",
+        words: ["sandwich", "cookie", "orange", "yogurt", "tomato", "carrot"],
+        sentences: [
+          "I have a sandwich for lunch.",
+          "I have a carrot for lunch.",
+          "I have an orange for lunch.",
+        ],
+      },
+      {
+        id: "j-i", label: "Jolly /i/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 6,
+        detail: "Nhóm 1 — âm /i/.", sound: "i", blend: ["sit", "pin", "tin"],
+      },
+      {
+        id: "taste", label: "The ___ is yummy / crunchy", group: "topic", unit: "School lunch", intro: 6,
+        detail: "I have a ___ for lunch. The ___ is ___.",
+        words: ["yummy", "crunchy", "juicy", "sweet", "tasty", "delicious"],
+        sentences: [
+          "I have a sandwich for lunch. The sandwich is yummy.",
+          "I have a carrot for lunch. The carrot is crunchy.",
+          "I have a tomato for lunch. The tomato is juicy.",
+          "I have a cookie for lunch. The cookie is sweet.",
+          "I have a yogurt for lunch. The yogurt is tasty.",
+          "I have an orange for lunch. The orange is delicious.",
+        ],
+      },
+      {
+        id: "song-lunch", label: "Song: I have a sandwich", group: "song", unit: "School lunch", intro: 7,
+        detail: "Hát theo nhịp, thay từ món ăn.",
+        sentences: ["I have a sandwich for lunch. The sandwich is yummy."],
+      },
+      {
+        id: "j-p", label: "Jolly /p/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 8,
+        detail: "Nhóm 1 — âm /p/.", sound: "p", blend: ["pin", "pat", "tap"],
+      },
+      {
+        id: "j-n", label: "Jolly /n/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 9,
+        detail: "Nhóm 1 — âm /n/.", sound: "n", blend: ["pan", "pin", "ant"],
+      },
+      {
+        id: "blend-1", label: "Blending nhóm 1", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 11,
+        detail: "s-a-t → sat, p-i-n → pin.",
+        letters: ["s", "a", "t", "i", "p", "n"],
+        blend: ["sat", "pin", "tap", "tin", "ant", "pan"],
+      },
+      {
+        id: "body2", label: "My body (2)", group: "topic", unit: "My body parts", intro: 11,
+        detail: "This is my hair/face. / These are my hands/feet.",
+        words: ["hair", "face", "arms", "hands", "body", "legs", "foot", "feet"],
+        sentences: [
+          "This is my hair.", "This is my face.", "These are my arms.", "These are my hands.",
+          "This is my body.", "These are my legs.", "This is my foot.", "These are my feet.",
+        ],
+      },
+      {
+        id: "j-ck", label: "Jolly /ck/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 12,
+        detail: "Nhóm 2 — âm /ck/.", sound: "ck", blend: ["duck", "sock", "kick"],
+      },
+      {
+        id: "toys", label: "Đồ chơi", group: "topic", unit: "My toy box", intro: 13,
+        detail: "Doll, teddy bear, ball, kite, robot, alien, balloon.",
+        words: ["doll", "teddy bear", "ball", "kite", "robot", "alien", "balloon"],
+        sentences: ["This is my teddy bear.", "I have a robot.", "What's your favourite toy? - A kite."],
+      },
+      {
+        id: "j-e", label: "Jolly /e/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 13,
+        detail: "Nhóm 2 — âm /e/.", sound: "e", blend: ["hen", "red", "bed"],
+      },
+      {
+        id: "song-toys", label: "Song: My teddy bear", group: "song", unit: "My toy box", intro: 14,
+        detail: "Hát và giới thiệu đồ chơi của mình.",
+        sentences: ["This is my teddy bear. I love my teddy bear."],
+      },
+      {
+        id: "j-h", label: "Jolly /h/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 15,
+        detail: "Nhóm 2 — âm /h/.", sound: "h", blend: ["hat", "hen", "hop"],
+      },
+      {
+        id: "prep-1", label: "Giới từ in / on / under", group: "topic", unit: "Where is it?", intro: 15,
+        detail: "The dog is in the box / on the table / under the chair.",
+        words: ["in", "on", "under", "box", "table", "chair"],
+        sentences: [
+          "Where is the dog? - The dog is in the box.",
+          "Where is the dog? - The dog is on the box.",
+          "Where is the dog? - The dog is under the box.",
+        ],
+      },
+      {
+        id: "j-r", label: "Jolly /r/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 16,
+        detail: "Nhóm 2 — âm /r/.", sound: "r", blend: ["red", "rat", "run"],
+      },
+      {
+        id: "j-m", label: "Jolly /m/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 17,
+        detail: "Nhóm 2 — âm /m/.", sound: "m", blend: ["map", "man", "mum"],
+      },
+      {
+        id: "prep-2", label: "Giới từ next to / behind / between", group: "topic", unit: "Where is it?", intro: 17,
+        detail: "Next to the wall, in front of / behind the pillow, between.",
+        words: ["next to", "in front of", "behind", "between", "wall", "pillow"],
+        sentences: [
+          "Where is the dog? - The dog is next to the wall.",
+          "Where is the dog? - The dog is behind the chair.",
+          "Where is the dog? - The dog is between the box and the table.",
+        ],
+      },
+      {
+        id: "j-d", label: "Jolly /d/", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 18,
+        detail: "Nhóm 2 — âm /d/.", sound: "d", blend: ["dog", "duck", "doll"],
+      },
+      {
+        id: "where", label: "Where is the ___? mở rộng", group: "topic", unit: "Where is it?", intro: 19,
+        detail: "Ghép giới từ với đồ chơi và đồ dùng học tập.",
+        words: ["ball", "kite", "doll", "ruler", "book", "bag"],
+        sentences: [
+          "Where is the ball? - The ball is under the chair.",
+          "Where is the ruler? - The ruler is on the table.",
+          "Where is the teddy bear? - The teddy bear is in the box.",
+        ],
+      },
+      {
+        id: "blend-2", label: "Blending nhóm 1 + 2", group: "phonics", unit: "Jolly phonics 1 & 2", intro: 19,
+        detail: "d-u-ck → duck, h-e-n → hen.",
+        letters: ["ck", "e", "h", "r", "m", "d"],
+        blend: ["duck", "hen", "red", "mum", "bed", "sock"],
+      },
       { id: "review", label: "Review & Show", group: "milestone", fixed: SPIRAL_MILESTONES, detail: "Ôn tổng hợp cả chặng và biểu diễn trước lớp." },
     ],
   },
@@ -585,6 +826,44 @@ function recentStrands(spiral, day, match, limit) {
     .sort((a, b) => b.intro - a.intro)
     .slice(0, limit);
 }
+
+/* ---------- Nội dung thật của từng buổi ---------- */
+
+const uniqueText = (list) => [...new Set(list.map((item) => String(item).trim()).filter(Boolean))];
+
+// Gom từ và mẫu câu của đúng những strand chạy trong buổi, ưu tiên strand mới
+// vào bài, rồi tới strand đang ôn, cuối cùng mới tới routine. Đây là chỗ làm cho
+// 20 buổi khác nhau: trước đây app lấy từ vựng ở mức unit nên mọi buổi cùng unit
+// đều ra một rổ từ giống hệt.
+function dayContent(program, day) {
+  const spiral = buildSpiral(program);
+  if (!spiral) return { active: [], order: [], words: [], sentences: [], phonics: [], blend: [], letters: [] };
+  const active = spiral.strands.filter((strand) => spiralHas(spiral, strand, day));
+  const order = [
+    ...active.filter((strand) => strand.intro === day),
+    ...active.filter((strand) => strand.intro && strand.intro !== day),
+    ...active.filter((strand) => !strand.intro),
+  ];
+  let phonics = order.filter((strand) => strand.group === "phonics");
+  if (!phonics.length) phonics = recentStrands(spiral, day, (strand) => strand.group === "phonics", 2);
+  const pick = (key, list) => list.flatMap((strand) => strand[key] || []);
+  return {
+    active,
+    order,
+    words: uniqueText(pick("words", order)),
+    sentences: uniqueText(pick("sentences", order)),
+    phonics,
+    letters: uniqueText(phonics.flatMap((strand) => strand.letters || (strand.sound ? [strand.sound] : []))),
+    blend: uniqueText(pick("blend", phonics)),
+  };
+}
+
+// Vài từ / mẫu câu đầu tiên của buổi, dùng để chèn vào mô tả task.
+const dayWordLine = (program, day, limit = 6) => dayContent(program, day).words.slice(0, limit).join(", ");
+const daySentence = (program, day, index = 0) => {
+  const list = dayContent(program, day).sentences;
+  return list.length ? list[Math.abs(index) % list.length] : "";
+};
 
 /* ---------- Lớp nội dung do admin sửa tay ---------- */
 
@@ -704,6 +983,13 @@ function sessionTasks(program, day, raw = false) {
   const q2 = reflexQuestions[(day * 2 - 1) % reflexQuestions.length];
   const names = (list) => list.map((strand) => strand.label).join(" · ");
 
+  // Từ và mẫu câu thật của buổi — lấy từ chính strand chạy trong buổi này, nên
+  // mô tả task của 20 buổi không còn giống nhau.
+  const content = dayContent(program, day);
+  const wordLine = content.words.slice(0, 6).join(", ");
+  const say = (index) => (content.sentences.length ? `“${content.sentences[Math.abs(index) % content.sentences.length]}”` : "");
+  const withSample = (text, index) => (content.sentences.length ? `${text} Mẫu: ${say(index)}` : text);
+
   // Task 3 mang ngôn ngữ MỚI nhưng ở mức tiếp nhận (Join in + Listening),
   // task 4 mang ngôn ngữ CŨ ở mức sản sinh (Use). Đúng thứ tự của tài liệu:
   // gặp → hiểu → làm theo → dùng, chứ không bắt nói ngay khi vừa gặp.
@@ -716,7 +1002,10 @@ function sessionTasks(program, day, raw = false) {
     : fresh.length
       ? {
           time: "6'", title: `Join in & Listening: ${names(fresh)}`, step: "Step 4 + 8", instruction: INSTRUCTION.listenTick,
-          detail: `${fresh.map((strand) => strand.detail).join(" ")} Trẻ point, touch, act rồi mới chọn đáp án.`,
+          detail: withSample(
+            `${fresh.map((strand) => strand.detail).join(" ")} Trẻ point, touch, act rồi mới chọn đáp án.`,
+            0,
+          ),
           tone: "repeat",
         }
       : {
@@ -735,10 +1024,10 @@ function sessionTasks(program, day, raw = false) {
     : {
         time: "6'", title: "Use — hỏi đáp cặp đôi", step: "Step 5", instruction: INSTRUCTION.askAnswer,
         detail: recycle.length
-          ? `Dùng lại trong hội thoại: ${names(recycle.slice(0, 3))}. Controlled → guided → pair work.`
+          ? withSample(`Dùng lại trong hội thoại: ${names(recycle.slice(0, 3))}. Controlled → guided → pair work.`, day + 1)
           : fallbackTopics.length
-            ? `Hỏi đáp cặp đôi quanh ${names(fallbackTopics)} — không nhìn mẫu.`
-            : "Hỏi đáp chào hỏi bằng trò chơi chuyền bóng.",
+            ? withSample(`Hỏi đáp cặp đôi quanh ${names(fallbackTopics)} — không nhìn mẫu.`, day + 1)
+            : `Hỏi đáp chào hỏi bằng trò chơi chuyền bóng: ${q1} / ${q2}`,
         tone: "intro",
       };
 
@@ -755,7 +1044,10 @@ function sessionTasks(program, day, raw = false) {
       title: "Experience & Input",
       step: "Step 1-2",
       instruction: INSTRUCTION.listenPoint,
-      detail: `${cast.name} mở đầu tình huống. Trẻ nghe story/song/teacher talk và chỉ theo, chưa cần nói.`,
+      detail: withSample(
+        `${cast.name} mở đầu tình huống. Trẻ nghe story/song/teacher talk và chỉ theo, chưa cần nói.`,
+        day,
+      ),
       tone: "routine",
     },
     {
@@ -763,7 +1055,9 @@ function sessionTasks(program, day, raw = false) {
       title: "Notice",
       step: "Step 3",
       instruction: INSTRUCTION.lookSay,
-      detail: `Nhận ra từ và cụm từ trong câu: ${topicNames}. Từ luôn nằm trong câu, không tách lẻ.`,
+      detail: wordLine
+        ? `Nhận ra từ trong câu — ${topicNames}: ${wordLine}. Từ luôn nằm trong câu, không tách lẻ.`
+        : `Nhận ra từ và cụm từ trong câu: ${topicNames}. Từ luôn nằm trong câu, không tách lẻ.`,
       tone: "intro",
     },
     newTask,
@@ -773,11 +1067,16 @@ function sessionTasks(program, day, raw = false) {
       title: "Phonics & Early Reading",
       step: "Step 6",
       instruction: INSTRUCTION.lookMatch,
-      detail: phonics.length
-        ? `${names(phonics)} — âm → động tác → nhận diện → ghép vần → đọc từ.`
-        : fallbackPhonics.length
-          ? `Ôn ${names(fallbackPhonics)} — nghe, làm động tác và ghép vần nhanh.`
-          : "Nghe và bắt chước âm đầu tiên, vỗ tay theo âm tiết.",
+      detail: (() => {
+        const base = phonics.length
+          ? `${names(phonics)} — âm → động tác → nhận diện → ghép vần → đọc từ.`
+          : fallbackPhonics.length
+            ? `Ôn ${names(fallbackPhonics)} — nghe, làm động tác và ghép vần nhanh.`
+            : "Nghe và bắt chước âm đầu tiên, vỗ tay theo âm tiết.";
+        const letters = content.letters.length ? ` Âm: ${content.letters.map((l) => `/${l}/`).join(" ")}.` : "";
+        const blend = content.blend.length ? ` Ghép vần: ${content.blend.slice(0, 5).join(", ")}.` : "";
+        return `${base}${letters}${blend}`;
+      })(),
       tone: "phonics",
     },
     {
@@ -785,7 +1084,10 @@ function sessionTasks(program, day, raw = false) {
       title: "Reading & Writing",
       step: "Step 7",
       instruction: INSTRUCTION.readChoose,
-      detail: `Đọc câu ngắn có từ vừa học rồi chọn tranh đúng. Về nhà: ${INSTRUCTION.drawColour.toLowerCase()}.`,
+      detail: withSample(
+        `Đọc câu ngắn rồi chọn tranh đúng, sau đó chép lại câu. Về nhà: ${INSTRUCTION.drawColour.toLowerCase()}.`,
+        day + 2,
+      ),
       tone: "literacy",
     },
     {
@@ -793,9 +1095,12 @@ function sessionTasks(program, day, raw = false) {
       title: "Speaking",
       step: "Step 9",
       instruction: INSTRUCTION.lookSay,
-      detail: reuse.length
-        ? `Nói về mình bằng mẫu câu đã học — có dùng lại ${names(reuse.slice(0, 2))} mà không nhắc mẫu.`
-        : "Nghe mẫu → nói theo → nói với bạn → nói về mình.",
+      detail: withSample(
+        reuse.length
+          ? `Nói về mình bằng mẫu câu đã học — có dùng lại ${names(reuse.slice(0, 2))} mà không nhắc mẫu.`
+          : "Nghe mẫu → nói theo → nói với bạn → nói về mình.",
+        day + 3,
+      ),
       tone: "routine",
     },
     {
@@ -803,7 +1108,9 @@ function sessionTasks(program, day, raw = false) {
       title: "Cambridge Checkpoint",
       step: "Step 10",
       instruction: INSTRUCTION.readChoose,
-      detail: `Dạng bài Starters chủ đề “${starter}”. Kiểm tra nhẹ cuối buổi, không biến cả buổi thành luyện đề.`,
+      detail: wordLine
+        ? `Dạng bài Starters chủ đề “${starter}”, kiểm tra bằng chính từ của buổi: ${wordLine}. Kiểm tra nhẹ cuối buổi, không biến cả buổi thành luyện đề.`
+        : `Dạng bài Starters chủ đề “${starter}”. Kiểm tra nhẹ cuối buổi, không biến cả buổi thành luyện đề.`,
       tone: "check",
     },
   ];
@@ -1172,7 +1479,6 @@ function renderNav() {
         { id: "users", title: "Người dùng", desc: "Học viên và giáo viên" },
         { id: "lessons", title: "Bài giảng", desc: "Quản lý nội dung bài" },
         { id: "grading", title: "Chấm bài", desc: "Bài nộp và điểm số" },
-        { id: "fees", title: "Học phí", desc: "Quản lý học phí học viên" },
         { id: "journey", title: `Lộ trình ${SPIRAL_SESSIONS} buổi`, desc: "Ma trận xoắn ốc và biên soạn từng buổi" },
       ],
     },
@@ -1860,10 +2166,14 @@ function renderChoices(qid, options, answer) {
   return `<div class="choice-row">${buttons}</div>${feedback}`;
 }
 
-// Gom từ vựng của các unit xuất hiện trong buổi để làm kho câu hỏi nghe.
+// Kho từ để dựng câu hỏi nghe. Ưu tiên từ gắn thẳng vào strand của buổi (chính
+// xác tới từng buổi); chỉ khi strand chưa khai từ nào mới lùi về kho từ mức unit
+// như trước — kho unit dùng chung cho mọi buổi cùng unit nên hay ra trùng.
 function dayWordPool(program, day, lesson) {
+  const exact = dayContent(program, day).words;
+  if (exact.length >= 4) return exact;
   const spiral = buildSpiral(program);
-  const words = [...lesson.vocabulary];
+  const words = [...exact, ...lesson.vocabulary];
   if (spiral) {
     spiral.strands
       .filter((strand) => strand.unit && spiralHas(spiral, strand, day))
@@ -1888,10 +2198,13 @@ const WORD_FRAMES = [
   (article, word) => `This is ${article} ${word}.`,
 ];
 
-function wordInContext(word, lesson, variant = 0) {
+function wordInContext(word, lesson, variant = 0, sentences = []) {
   const clean = String(word).trim();
-  const hit = (lesson.structure || []).find((line) =>
-    new RegExp(`\\b${clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line));
+  const pattern = new RegExp(`\\b${clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  // Câu mẫu của đúng buổi đó xét trước, rồi mới tới mẫu câu chung của unit.
+  const fromDay = sentences.find((line) => pattern.test(line));
+  if (fromDay) return fromDay;
+  const hit = (lesson.structure || []).find((line) => pattern.test(line));
   if (hit) return hit;
   const article = /^[aeiou]/i.test(clean) ? "an" : "a";
   return WORD_FRAMES[Math.abs(variant) % WORD_FRAMES.length](article, clean);
@@ -1911,6 +2224,8 @@ function instructionBar(task, note) {
 function renderTaskPanel(context) {
   const { program, day, index, task, lesson, info, unitName } = context;
   const qid = (suffix) => `${program}|${day}|${suffix}`;
+  // Từ, câu mẫu và âm phonics đúng của buổi này — dùng thay cho kho chung của unit.
+  const today = dayContent(program, day);
   const focusStrand = info.fresh[0]
     || info.active.find((strand) => strand.group === "story" || strand.group === "song")
     || info.active.find((strand) => strand.group === "topic")
@@ -1921,7 +2236,7 @@ function renderTaskPanel(context) {
     const cast = info.cast || castFor(focusStrand);
     const lines = [
       `Hello! I'm ${cast.name}.`,
-      ...(lesson.structure || []).slice(0, 2),
+      ...(today.sentences.length ? today.sentences.slice(0, 2) : (lesson.structure || []).slice(0, 2)),
     ].filter(Boolean);
     return `
       ${instructionBar(task, "Nghe và chỉ vào tranh. Chưa cần nói.")}
@@ -1947,7 +2262,7 @@ function renderTaskPanel(context) {
       ${instructionBar(task, "Bấm thẻ để nghe cả câu, rồi nói theo.")}
       <div class="flash-grid">
         ${lesson.vocabulary.map((word, wi) => {
-          const chunk = wordInContext(word, lesson, wi);
+          const chunk = wordInContext(word, lesson, wi, today.sentences);
           const heard = state.taskAnswers[qid(`voc-${word}`)] === "heard";
           return `<button class="flash-card ${heard ? "heard" : ""}" data-action="flash"
             data-qid="${escapeHtml(qid(`voc-${word}`))}" data-text="${escapeHtml(chunk)}">
@@ -1982,7 +2297,7 @@ function renderTaskPanel(context) {
       ${instructionBar(task, "Nghe cả câu rồi chọn từ em nghe được. Từ lấy từ các bài đã học.")}
       ${rounds.map((round, i) => `
         <div class="quiz-block">
-          <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i), "🔊 Nghe câu")}<span class="muted">Câu ${i + 1} / 3</span></div>
+          <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i, today.sentences), "🔊 Nghe câu")}<span class="muted">Câu ${i + 1} / 3</span></div>
           ${renderChoices(qid(`listen-${i}`), round.options, round.answer)}
         </div>
       `).join("")}
@@ -2022,9 +2337,13 @@ function renderTaskPanel(context) {
 
   // Step 6 · Phonics & Early Reading — âm → động tác → nhận diện → ghép vần → đọc.
   if (index === 4) {
-    const letters = [...new Set(lesson.phonics.map(soundLetter).filter(Boolean))];
+    // Âm của đúng buổi này (khai trong strand); chỉ khi buổi chưa có phonics
+    // mới lùi về danh sách âm chung của unit.
+    const letters = today.letters.length
+      ? today.letters
+      : [...new Set(lesson.phonics.map(soundLetter).filter(Boolean))];
     const target = letters[day % Math.max(letters.length, 1)] || "s";
-    const right = (phonicsWords[target] || ["sun"])[0];
+    const right = (phonicsWords[target] || today.blend || ["sun"])[0] || "sun";
     const others = Object.keys(phonicsWords).filter((key) => key !== target);
     const wrongOrder = seededOrder(others.length, day * 11);
     const wrong = wrongOrder.slice(0, 2).map((o) => (phonicsWords[others[o]] || ["cat"])[0]);
@@ -2034,12 +2353,14 @@ function renderTaskPanel(context) {
       : videoLibrary.jolly1;
     // Blending là bước bắt buộc trong chuỗi phonics của trung tâm: đọc rời từng
     // âm rồi trượt lại thành từ, chứ không phải viết chữ lặp lại.
-    const blendWords = (phonicsWords[target] || []).filter((word) => word.length <= 4).slice(0, 3);
+    const blendWords = today.blend.length
+      ? today.blend.slice(0, 4)
+      : (phonicsWords[target] || []).filter((word) => word.length <= 4).slice(0, 3);
     return `
       ${instructionBar(task, "Bấm chữ để nghe âm, rồi ghép âm thành từ.")}
       <div class="letter-row">
         ${letters.map((letter) => {
-          const sample = (phonicsWords[letter] || []).slice(0, 3);
+          const sample = (phonicsWords[letter] || today.blend.filter((word) => word.includes(letter))).slice(0, 3);
           const text = sample.length ? `${letter}. ${sample.join(", ")}` : letter;
           return `<button class="letter-tile" data-action="say" data-text="${escapeHtml(text)}">
             <span class="letter-main">${escapeHtml(letter)}</span>
@@ -2067,12 +2388,14 @@ function renderTaskPanel(context) {
 
   // Step 7 · Reading & Writing — đọc câu đã nghe quen rồi chọn từ còn thiếu.
   if (index === 5) {
-    const pool = [...new Set(lesson.vocabulary.map((word) => String(word).trim()).filter(Boolean))];
+    const pool = today.words.length >= 3
+      ? today.words
+      : [...new Set(lesson.vocabulary.map((word) => String(word).trim()).filter(Boolean))];
     const order = seededOrder(Math.max(pool.length, 1), day * 17 + 3);
     const rounds = [];
     for (let i = 0; i < 2; i += 1) {
       const answer = pool[order[i % Math.max(pool.length, 1)]] || "book";
-      let gapSource = wordInContext(answer, lesson, day + i);
+      let gapSource = wordInContext(answer, lesson, day + i, today.sentences);
       let gap = gapSource.replace(new RegExp(`\\b${answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i"), "______");
       // Nếu hai câu điền ra giống hệt nhau (kho từ ngắn, hoặc cả hai cùng khớp
       // một câu mẫu) thì đổi sang khung câu dự phòng khác để trẻ không thấy hai
@@ -2148,7 +2471,7 @@ function renderTaskPanel(context) {
     </div>
     ${checkRounds.map((round, i) => `
       <div class="quiz-block">
-        <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i * 2), "🔊 Listen")}<span class="muted">Question ${i + 1} / 2</span></div>
+        <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i * 2, today.sentences), "🔊 Listen")}<span class="muted">Question ${i + 1} / 2</span></div>
         ${renderChoices(qid(`check-${i}`), round.options, round.answer)}
       </div>
     `).join("")}
@@ -2496,7 +2819,6 @@ function renderAdminDashboard() {
       <button class="admin-shortcut" data-page="users"><strong>Người dùng</strong><span class="muted">Quản lý học viên và giáo viên</span></button>
       <button class="admin-shortcut" data-page="lessons"><strong>Bài giảng</strong><span class="muted">Danh sách và trạng thái bài học</span></button>
       <button class="admin-shortcut" data-page="grading"><strong>Chấm bài</strong><span class="muted">${pending} bài đang chờ</span></button>
-      <button class="admin-shortcut" data-page="fees"><strong>Học phí</strong><span class="muted">Theo dõi công nợ học viên</span></button>
       <button class="admin-shortcut" data-page="journey"><strong>Lộ trình ${SPIRAL_SESSIONS} buổi</strong><span class="muted">Ma trận xoắn ốc và biên soạn nội dung từng buổi</span></button>
     </div>
     <div class="card admin-panel">
@@ -2813,62 +3135,6 @@ function renderAdminGradeDetail(item) {
   `;
 }
 
-function renderAdminFees() {
-  const rows = adminFees.filter((item) => {
-    const byStatus = adminUi.feeFilter === "all" || item.statusKey === adminUi.feeFilter;
-    const byQuery = !adminUi.query || matchesQuery(`${item.code} ${item.student} ${item.className} ${item.course}`);
-    return byStatus && byQuery;
-  });
-  const total = adminFees.reduce((sum, item) => sum + item.total, 0);
-  const paid = adminFees.reduce((sum, item) => sum + item.paid, 0);
-  const due = total - paid;
-  const overdue = adminFees.filter((item) => item.statusKey === "review").length;
-  return `
-    <div class="admin-stats">
-      <div class="admin-stat"><div class="metric-value">${formatVnd(total)}</div><div class="metric-label">Tổng học phí</div></div>
-      <div class="admin-stat"><div class="metric-value">${formatVnd(paid)}</div><div class="metric-label">Đã thu</div></div>
-      <div class="admin-stat"><div class="metric-value">${formatVnd(due)}</div><div class="metric-label">Còn nợ</div></div>
-      <div class="admin-stat"><div class="metric-value">${overdue}</div><div class="metric-label">Hồ sơ quá hạn</div></div>
-    </div>
-    <div class="card admin-panel">
-      <div class="admin-panel-head">
-        <h3>Học phí học viên <span class="admin-count">(${rows.length})</span></h3>
-        <button class="admin-add" data-action="admin-add">+ Ghi nhận thu</button>
-      </div>
-      <div class="admin-toolbar">
-        <input id="adminSearch" data-admin-field="query" placeholder="Tìm học viên, lớp, mã học phí..." />
-        <select data-admin-field="feeFilter">
-          <option value="all">Tất cả trạng thái</option>
-          <option value="done">Đã đóng</option>
-          <option value="pending">Còn nợ</option>
-          <option value="review">Quá hạn</option>
-        </select>
-        <select>
-          <option>Tất cả chương trình</option>
-          ${programList.map((item) => `<option>${escapeHtml(item)}</option>`).join("")}
-        </select>
-      </div>
-      ${renderAdminTable(
-        ["MÃ", "HỌC VIÊN", "LỚP", "CHƯƠNG TRÌNH", "TỔNG PHÍ", "ĐÃ THU", "CÒN NỢ", "HẠN ĐÓNG", "TRẠNG THÁI", "THAO TÁC"],
-        rows.map((item) => `
-          <tr>
-            <td>${item.code}</td>
-            <td><button class="admin-link">${item.student}</button></td>
-            <td>${item.className}</td>
-            <td><span class="badge badge-yellow">${item.course}</span></td>
-            <td>${formatVnd(item.total)}</td>
-            <td>${formatVnd(item.paid)}</td>
-            <td>${formatVnd(item.total - item.paid)}</td>
-            <td>${item.due}</td>
-            <td><span class="badge ${badgeClass(item.statusKey)}">${item.status}</span></td>
-            <td><button class="admin-link">${item.statusKey === "done" ? "Xem" : "Thu phí"}</button></td>
-          </tr>
-        `)
-      )}
-    </div>
-  `;
-}
-
 function renderWelcome() {
   return `
     <div class="login-screen">
@@ -2899,7 +3165,7 @@ function pageCopy() {
     return pages[state.activeStudentPage] || pages.profile;
   }
   const pages = {
-    dashboard: ["Quản trị hệ thống", "Dashboard", "Theo dõi user, bài giảng, chấm bài và học phí."],
+    dashboard: ["Quản trị hệ thống", "Dashboard", "Theo dõi user, bài giảng, chấm bài và lộ trình giảng dạy."],
     users: ["Quản trị hệ thống", "Quản lý người dùng", "Học viên, giáo viên và quản trị viên trong một danh sách."],
     lessons: adminUi.selectedLesson
       ? ["Quản trị hệ thống", "Chi tiết bài giảng", "Xem và chỉnh các trường nội dung của bài học."]
@@ -2907,7 +3173,6 @@ function pageCopy() {
     grading: adminUi.selectedGrade
       ? ["Quản trị hệ thống", "Chấm bài", "Xem bài học viên đã làm và chấm theo nội dung unit."]
       : ["Quản trị hệ thống", "Quản lý chấm bài", "Xem bài nộp, điểm số và các bài đang chờ chấm."],
-    fees: ["Quản trị hệ thống", "Quản lý học phí", "Theo dõi học phí, công nợ và hạn đóng của học viên."],
     journey: ["Quản trị hệ thống", `Lộ trình ${SPIRAL_SESSIONS} buổi`, "Ma trận xoắn ốc và biên soạn nội dung của từng buổi ngay tại đây."],
   };
   return pages[state.activeAdminPage] || pages.dashboard;
@@ -2951,7 +3216,6 @@ function renderBody() {
   else if (role === "admin" && page === "users") body = renderAdminUsers();
   else if (role === "admin" && page === "lessons") body = renderAdminLessons();
   else if (role === "admin" && page === "grading") body = renderAdminGrading();
-  else if (role === "admin" && page === "fees") body = renderAdminFees();
   else body = role === "admin" ? renderAdminDashboard() : renderStudentProfile();
 
   el("content").innerHTML = body;

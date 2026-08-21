@@ -1383,6 +1383,42 @@ function dayDoneSet(program, day, total) {
   return new Set(done.filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < total));
 }
 
+// Nhãn tiếng Việt cho nhóm strand, dùng làm tag trên ảnh banner để phụ huynh
+// biết buổi đó chạy bằng phương tiện gì (truyện, bài hát, phonics...).
+const GROUP_TAG = {
+  topic: "Chủ điểm",
+  phonics: "Phonics",
+  song: "Bài hát",
+  story: "Truyện",
+  routine: "Nếp lớp",
+  milestone: "Ôn tập & Show",
+};
+
+// Ảnh banner của buổi lấy poster video mà chính buổi đó dùng để học — không phải
+// ảnh trang trí rời. Dùng mqdefault.jpg (16:9, không viền đen như hqdefault) nên
+// cắt vào khung banner không bị hụt. Mất mạng thì ảnh không tải nhưng nền
+// gradient của .day-banner vẫn giữ đúng khối, thẻ không vỡ layout.
+function dayBanner(info) {
+  // Buổi vào bài mới lấy strand mới, buổi ôn lấy strand đang ôn. Trong cùng một
+  // buổi thì ưu tiên strand không phải phonics: mọi âm Jolly dùng chung một
+  // video nên nếu chọn phonics, mấy buổi liền nhau sẽ trùng y hệt một ảnh.
+  // Cùng cách chọn với starterTopicFor() trong sessionSummary().
+  const pool = info.fresh.length
+    ? info.fresh
+    : info.repeat.length ? info.repeat : info.active.filter((strand) => !strand.daily);
+  const focus = info.milestone
+    ? info.active.find((strand) => strand.group === "milestone")
+    : pool.find((strand) => strand.group !== "phonics") || pool[0] || info.active[0];
+  const video = videoFor(focus);
+  const group = (focus && focus.group) || "routine";
+  return {
+    group,
+    tag: GROUP_TAG[group] || "Buổi học",
+    caption: video ? video.title : "Nếp lớp, phản xạ & trò chơi",
+    image: video ? `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg` : "",
+  };
+}
+
 function renderRoadmapDays(program) {
   const spiral = buildSpiral(program);
   if (!spiral) return renderProgramUnits(program);
@@ -1412,6 +1448,7 @@ function renderRoadmapDays(program) {
           const progress = total ? Math.round((done / total) * 100) : 0;
           const minutes = tasks.reduce((sum, task) => sum + (parseInt(task.time, 10) || 0), 0);
           const chips = info.active.filter((strand) => !strand.daily);
+          const banner = dayBanner(info);
           const head = (day - 1) % SPIRAL_CHAPTER === 0
             ? `<div class="day-chapter">Chặng ${chapterOf(day)}/${SPIRAL_CHAPTERS} · Buổi ${day}–${Math.min(day + SPIRAL_CHAPTER - 1, spiral.sessions)}</div>`
             : "";
@@ -1419,6 +1456,7 @@ function renderRoadmapDays(program) {
             ${head}
             <button class="day-row ${day === current ? "current" : ""} ${info.milestone ? "milestone" : ""} ${status === "done" ? "finished" : ""}"
               data-action="open-day" data-program="${escapeHtml(program)}" data-day="${day}">
+              <div class="day-main">
               <div class="day-row-head">
                 <span class="day-num">Day ${day}</span>
                 <strong class="day-title">${escapeHtml(info.title)}</strong>
@@ -1458,6 +1496,12 @@ function renderRoadmapDays(program) {
                   </span>
                 `;
                 }).join("") : `<span class="spiral-chip routine">Thường lệ &amp; phản xạ</span>`}
+              </div>
+              </div>
+
+              <div class="day-banner ${banner.group}" ${banner.image ? `style="background-image:url('${banner.image}')"` : ""}>
+                <span class="day-banner-tag">${escapeHtml(banner.tag)}</span>
+                <span class="day-banner-caption">${escapeHtml(banner.caption)}</span>
               </div>
             </button>
           `;

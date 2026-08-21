@@ -749,18 +749,102 @@ textarea {
   padding-top: 0;
 }
 
+/* Thẻ Day chia đôi: trái là thông tin buổi học, phải là ảnh banner của buổi.
+   minmax(0,1fr) chứ không phải 1fr — nếu không, chuỗi dài trong cột trái sẽ đẩy
+   cột ảnh tràn ra ngoài thẻ. */
 .day-row {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 216px;
+  align-items: stretch;
   width: 100%;
   text-align: left;
   font: inherit;
   color: inherit;
-  padding: 14px 16px;
+  padding: 0;
+  overflow: hidden;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: white;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.day-main {
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.day-banner {
+  position: relative;
+  min-height: 100%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  background-color: var(--blue-soft);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Lớp phủ tối nhẹ để chữ trên ảnh luôn đọc được, ảnh sáng hay tối cũng vậy. */
+.day-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 22, 48, 0.42) 0%, rgba(8, 22, 48, 0.1) 42%, rgba(8, 22, 48, 0.72) 100%);
+}
+
+.day-banner-tag,
+.day-banner-caption {
+  position: relative;
+  z-index: 1;
+}
+
+.day-banner-tag {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--blue-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.day-banner-caption {
+  font-size: 11.5px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Không có ảnh (mất mạng, strand chưa gắn video) thì nền theo nhóm strand. */
+.day-banner.phonics { background-color: #ede9fe; }
+.day-banner.song { background-color: #fee2e2; }
+.day-banner.story { background-color: #ffedd5; }
+.day-banner.milestone { background-color: #fef3c7; }
+.day-banner.routine { background-color: var(--blue-soft); }
+
+@media (max-width: 720px) {
+  .day-row {
+    grid-template-columns: 1fr;
+  }
+
+  .day-banner {
+    order: -1;
+    min-height: 108px;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
 }
 
 .day-row:hover {

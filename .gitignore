@@ -1,0 +1,6 @@
+# Tài liệu giáo trình nội bộ — không đẩy lên host công khai
+*.docx
+*.pdf
+
+# Thư mục làm việc của công cụ
+.claude/

@@ -1,46 +1,37 @@
-<!doctype html>
-<html lang="en">
+﻿<!doctype html>
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Steps English Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div class="app-shell" id="appShell">
       <aside class="sidebar">
         <div class="brand">
+          <div id="brandMark" class="brand-mark" aria-hidden="true"></div>
           <div>
             <div class="brand-name">Steps English</div>
-            <div class="brand-subtitle">Discovery demo</div>
+            <div class="brand-subtitle" id="brandSubtitle">Demo khám phá</div>
           </div>
         </div>
-
         <nav id="nav" class="nav"></nav>
+        <div id="sidebarFooter" class="sidebar-footer"></div>
       </aside>
 
       <main class="main">
         <header class="topbar">
           <div>
-            <div id="pageEyebrow" class="eyebrow">Student journey</div>
+            <div id="pageEyebrow" class="eyebrow">Hành trình học viên</div>
             <h1 id="pageTitle">Steps English</h1>
-            <p id="pageSubtitle">
-              English grows naturally through stories, songs, play, speaking, and review.
-            </p>
+            <p id="pageSubtitle">Tiếng Anh phát triển tự nhiên qua truyện, bài hát, trò chơi, nói và ôn tập.</p>
           </div>
-          <div class="topbar-actions">
-            <select id="roleSelect" class="role-select" aria-label="Select view">
-              <option value="student">Student View</option>
-              <option value="admin">Teacher/Admin View</option>
-            </select>
-            <button id="resetDemo" class="ghost-btn">Reset Demo</button>
-          </div>
+          <div class="topbar-actions"></div>
         </header>
 
         <div class="topbar-metrics" id="topbarMetrics"></div>
@@ -48,6 +39,6 @@
       </main>
     </div>
 
-    <script src="./app.js"></script>
+    <script src="./app.js" charset="utf-8"></script>
   </body>
 </html>

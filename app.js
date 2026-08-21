@@ -3180,9 +3180,21 @@ function saveAndRender() {
   render();
 }
 
+// Cụm tiêu đề dính ở đỉnh trang; cuộn xuống thì gắn cờ để CSS thu nó lại cho
+// đỡ chiếm màn hình. Gắn một lần lúc khởi động — #pageHead nằm trong
+// index.html nên render() không đụng tới, không lo chồng listener.
+function bindStickyHead() {
+  const head = el("pageHead");
+  if (!head) return;
+  const sync = () => head.classList.toggle("is-stuck", window.scrollY > 8);
+  window.addEventListener("scroll", sync, { passive: true });
+  sync();
+}
+
 function bootstrap() {
   render();
   bindEvents();
+  bindStickyHead();
 }
 
 bootstrap();

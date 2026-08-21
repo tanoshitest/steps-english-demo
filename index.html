@@ -25,16 +25,21 @@
       </aside>
 
       <main class="main">
-        <header class="topbar">
-          <div>
-            <div id="pageEyebrow" class="eyebrow">Hành trình học viên</div>
-            <h1 id="pageTitle">Steps English</h1>
-            <p id="pageSubtitle">Tiếng Anh phát triển tự nhiên qua truyện, bài hát, trò chơi, nói và ôn tập.</p>
-          </div>
-          <div class="topbar-actions"></div>
-        </header>
+        <!-- Tiêu đề trang và dãy chỉ số gom vào một khối để dính lại khi cuộn.
+             Nếu để rời như trước thì hai khối sticky sẽ chồng lên nhau. -->
+        <div class="page-head" id="pageHead">
+          <header class="topbar">
+            <div>
+              <div id="pageEyebrow" class="eyebrow">Hành trình học viên</div>
+              <h1 id="pageTitle">Steps English</h1>
+              <p id="pageSubtitle">Tiếng Anh phát triển tự nhiên qua truyện, bài hát, trò chơi, nói và ôn tập.</p>
+            </div>
+            <div class="topbar-actions"></div>
+          </header>
 
-        <div class="topbar-metrics" id="topbarMetrics"></div>
+          <div class="topbar-metrics" id="topbarMetrics"></div>
+        </div>
+
         <section id="content" class="content"></section>
       </main>
     </div>

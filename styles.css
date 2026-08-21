@@ -161,6 +161,79 @@ textarea {
   min-width: 0;
 }
 
+/* Cụm tiêu đề + dãy chỉ số đứng im khi cuộn, danh sách buổi trôi bên dưới.
+   Khung cuộn là body (.main không đặt overflow) nên position:sticky ăn ngay —
+   cùng cách .sidebar đang dùng. Margin âm để nền phủ hết 24px padding của
+   .main, không thì nội dung sẽ lòi ra ở hai mép khi trôi qua dưới cụm này. */
+.page-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: -24px -24px 18px;
+  padding: 24px 24px 2px;
+  background: rgba(244, 249, 255, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid transparent;
+  transition: padding 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Cuộn xuống là thu gọn lại. Để nguyên thì cụm này cao ~250px, chiếm gần một
+   phần ba màn hình và chỉ còn chỗ cho 2 thẻ Day. Bản thu gọn vẫn giữ tên bài
+   và đủ 4 chỉ số, chỉ bỏ dòng mô tả tĩnh vì đọc một lần là xong. */
+.page-head.is-stuck {
+  padding-top: 10px;
+  border-bottom-color: var(--line);
+  box-shadow: 0 8px 20px rgba(15, 35, 80, 0.06);
+}
+
+.page-head.is-stuck .eyebrow,
+.page-head.is-stuck .topbar p {
+  display: none;
+}
+
+.page-head.is-stuck .topbar {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.page-head.is-stuck .topbar h1 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.page-head.is-stuck .topbar-metrics {
+  gap: 10px;
+  margin: 10px 0 10px;
+}
+
+.page-head.is-stuck .metric-card {
+  padding: 8px 12px;
+  min-width: 116px;
+}
+
+.page-head.is-stuck .metric-value {
+  font-size: 1rem;
+}
+
+.page-head.is-stuck .metric-label {
+  font-size: 0.78rem;
+  margin-top: 1px;
+}
+
+/* Màn hẹp: 4 thẻ chỉ số xếp dọc thành một cột cao, dính lại thì che gần hết
+   màn hình. Dưới 1100px trả về như cũ, cuộn bình thường. */
+@media (max-width: 1100px) {
+  .page-head {
+    position: static;
+    margin: 0 0 18px;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    border-bottom: 0;
+    box-shadow: none;
+  }
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -2140,6 +2213,7 @@ body.is-login .app-shell {
 }
 
 body.is-login .sidebar,
+body.is-login .page-head,
 body.is-login .topbar,
 body.is-login .topbar-metrics {
   display: none;

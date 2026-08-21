@@ -247,6 +247,8 @@ const programList = ["Movers", "Flyers", "2019 Khóa 1", "Seed 39 Khóa 2"];
 
 const lessonOrder = Object.keys(lessonCatalog);
 
+const ADMIN_PAGES = ["dashboard", "users", "lessons", "grading", "fees", "journey"];
+
 const stateDefaults = {
   currentRole: "student",
   activePage: "welcome",
@@ -266,6 +268,10 @@ const stateDefaults = {
   activeTask: 0,
   taskDone: {},
   taskAnswers: {},
+  // Nội dung buổi học do công thức xoắn ốc sinh ra. Admin sửa buổi nào thì phần
+  // sửa nằm ở đây, khoá theo "chương trình|buổi" giống taskDone, và được đắp lên
+  // bản sinh tự động khi hiển thị — nên sửa một lần là học viên thấy ngay.
+  dayEdits: {},
   stars: 330,
   unitProgress: 42,
   completedActivities: ["story", "song"],
@@ -281,10 +287,11 @@ const adminUi = {
   roleFilter: "all",
   programFilter: "all",
   gradeFilter: "all",
-  syllabusFilter: "all",
   feeFilter: "all",
   selectedGrade: "",
   selectedLesson: "",
+  // Màn "Lộ trình 20 buổi" đang mở form biên soạn hay đang xem.
+  editDay: false,
 };
 
 // Học viên đang đăng nhập ở vai "Học sinh" — khớp với HV001 trong danh sách quản trị.
@@ -316,13 +323,6 @@ const adminGrading = [
   { code: "NOP-116", student: "Lucy Phạm", className: "Seed 39 K2 B1", lesson: "My toy box", type: "Phonics", step: "phonics", submitted: "2 ngày trước", score: "—", status: "Chờ chấm", statusKey: "pending", answer: "teddy", comment: "" },
   { code: "NOP-115", student: "Khoa Lê", className: "Seed 39 K2 B1", lesson: "Where is it?", type: "Viết", step: "say", submitted: "3 ngày trước", score: "8/10", status: "Đã chấm", statusKey: "done", answer: "The ball is under the table.", comment: "Đúng cấu trúc, viết hoa đầu câu tốt." },
   { code: "NOP-114", student: "Anna Nguyễn", className: "2019 K1 A1", lesson: "Say hello", type: "Nói", step: "speak", submitted: "4 ngày trước", score: "7/10", status: "Cần xem lại", statusKey: "review", answer: "My name Anna.", comment: "Thiếu 'is' trong câu." },
-];
-
-const adminSyllabus = [
-  { code: "SYL-MOV", name: "Movers Success", level: "Movers", units: 12, owner: "Cô Hoa Lê", status: "Đang soạn", statusKey: "editing" },
-  { code: "SYL-FLY", name: "Flyers Success", level: "Flyers", units: 12, owner: "Thầy Nam Vũ", status: "Bản nháp", statusKey: "draft" },
-  { code: "SYL-19K1", name: "Chương Trình 2019 Khóa 1", level: "2019 Khóa 1", units: 7, owner: "Cô Hoa Lê", status: "Đã xuất bản", statusKey: "published" },
-  { code: "SYL-39K2", name: "Chương Trình Seed 39 Khóa 2", level: "Seed 39 Khóa 2", units: 7, owner: "Cô Hoa Lê", status: "Đã xuất bản", statusKey: "published" },
 ];
 
 const adminFees = [
@@ -586,9 +586,70 @@ function recentStrands(spiral, day, match, limit) {
     .slice(0, limit);
 }
 
+/* ---------- Lớp nội dung do admin sửa tay ---------- */
+
+// Các trường của một task mà admin được sửa. `step` và `tone` để nguyên vì đó là
+// khung sư phạm 10 Step, đổi thì lệch với phần còn lại của app.
+const TASK_FIELDS = ["title", "instruction", "detail", "time"];
+
+const dayEditKey = (program, day) => `${program}|${day}`;
+
+function dayEditOf(program, day) {
+  return (state.dayEdits && state.dayEdits[dayEditKey(program, day)]) || null;
+}
+
+// Có sửa gì chưa — dùng để đánh dấu buổi đã biên soạn trên ma trận.
+function hasDayEdit(program, day) {
+  const edit = dayEditOf(program, day);
+  if (!edit) return false;
+  if (edit.title) return true;
+  return Object.values(edit.tasks || {}).some((task) => TASK_FIELDS.some((field) => task[field]));
+}
+
+// Ghi một ô sửa. Xoá trắng ô nào thì bỏ ô đó đi để buổi quay lại bản sinh tự
+// động, chứ không lưu chuỗi rỗng rồi hiện ra khoảng trắng.
+function setDayEdit(program, day, path, value) {
+  const key = dayEditKey(program, day);
+  if (!state.dayEdits) state.dayEdits = {};
+  const edit = state.dayEdits[key] || (state.dayEdits[key] = { title: "", tasks: {} });
+  const text = String(value || "").trim();
+  if (path === "title") {
+    edit.title = text;
+  } else {
+    const [idx, field] = path.split(".");
+    if (!TASK_FIELDS.includes(field)) return;
+    if (!edit.tasks) edit.tasks = {};
+    const task = edit.tasks[idx] || (edit.tasks[idx] = {});
+    if (text) task[field] = text;
+    else delete task[field];
+    if (!Object.keys(task).length) delete edit.tasks[idx];
+  }
+  if (!edit.title && !Object.keys(edit.tasks || {}).length) delete state.dayEdits[key];
+}
+
+function clearDayEdit(program, day) {
+  if (state.dayEdits) delete state.dayEdits[dayEditKey(program, day)];
+}
+
+function applyTaskEdits(program, day, tasks) {
+  const edit = dayEditOf(program, day);
+  if (!edit || !edit.tasks) return tasks;
+  return tasks.map((task, idx) => {
+    const patch = edit.tasks[idx];
+    if (!patch) return task;
+    const next = { ...task };
+    TASK_FIELDS.forEach((field) => {
+      if (patch[field]) next[field] = patch[field];
+    });
+    return next;
+  });
+}
+
 // Tóm tắt một buổi để hiển thị trên bản đồ Day: tên buổi, unit gắn với buổi đó
 // và các mảng ngôn ngữ có mặt.
-function sessionSummary(program, day) {
+// `raw = true` trả về bản sinh tự động, chưa đắp phần admin sửa — màn biên soạn
+// cần bản này để hiện làm gợi ý trong ô nhập.
+function sessionSummary(program, day, raw = false) {
   const spiral = buildSpiral(program);
   if (!spiral) return null;
   const active = spiral.strands.filter((strand) => spiralHas(spiral, strand, day));
@@ -601,6 +662,7 @@ function sessionSummary(program, day) {
   // nhận diện lại, mảng nào bắt trẻ tự dùng.
   const recycleMap = { new: [], recycle: [], reuse: [], daily: [], milestone: [] };
   active.forEach((strand) => recycleMap[strandRole(strand, day)].push(strand));
+  const edit = dayEditOf(program, day);
   return {
     active,
     milestone,
@@ -610,7 +672,10 @@ function sessionSummary(program, day) {
     cast: castFor(focus[0] || active[0]),
     starter: starterTopicFor(focus.find((strand) => strand.group !== "phonics") || focus[0]),
     unit: focus.find((strand) => strand.unit)?.unit || "",
-    title: milestone
+    edited: hasDayEdit(program, day),
+    title: !raw && edit && edit.title
+      ? edit.title
+      : milestone
       ? "Review & Show — mốc chặng"
       : fresh.length
         ? label(fresh)
@@ -622,7 +687,7 @@ function sessionSummary(program, day) {
   };
 }
 
-function sessionTasks(program, day) {
+function sessionTasks(program, day, raw = false) {
   const spiral = buildSpiral(program);
   if (!spiral) return [];
   const active = spiral.strands.filter((strand) => spiralHas(spiral, strand, day));
@@ -684,7 +749,7 @@ function sessionTasks(program, day) {
 
   // 8 task = 10 Step gói lại cho vừa 45 phút. Step 1+2 chung một task mở bài,
   // Step 4 và Step 8 chung một task nghe-và-làm-theo.
-  return [
+  const tasks = [
     {
       time: "5'",
       title: "Experience & Input",
@@ -742,6 +807,8 @@ function sessionTasks(program, day) {
       tone: "check",
     },
   ];
+
+  return raw ? tasks : applyTaskEdits(program, day, tasks);
 }
 
 /* ---------- Media cho phần học tương tác ---------- */
@@ -903,6 +970,8 @@ function loadState() {
       selectedUnit: fixUnitName(parsed.selectedUnit || stateDefaults.selectedUnit),
       // State cũ có thể trỏ tới chương trình đã gỡ, đưa về chương trình còn lộ trình.
       spiralProgram: spiralPlans[parsed.spiralProgram] ? parsed.spiralProgram : stateDefaults.spiralProgram,
+      // Trang "syllabus" đã gỡ; state cũ còn trỏ tới đó thì đưa về dashboard.
+      activeAdminPage: ADMIN_PAGES.includes(parsed.activeAdminPage) ? parsed.activeAdminPage : stateDefaults.activeAdminPage,
       activePage: "welcome",
     };
   } catch {
@@ -1104,8 +1173,7 @@ function renderNav() {
         { id: "lessons", title: "Bài giảng", desc: "Quản lý nội dung bài" },
         { id: "grading", title: "Chấm bài", desc: "Bài nộp và điểm số" },
         { id: "fees", title: "Học phí", desc: "Quản lý học phí học viên" },
-        { id: "syllabus", title: "Biên soạn syllabus", desc: "Movers / Flyers / 2019 Khóa 1 / Seed 39 Khóa 2" },
-        { id: "journey", title: `Lộ trình ${SPIRAL_SESSIONS} buổi`, desc: "Ma trận xoắn ốc từng buổi" },
+        { id: "journey", title: `Lộ trình ${SPIRAL_SESSIONS} buổi`, desc: "Ma trận xoắn ốc và biên soạn từng buổi" },
       ],
     },
   ];
@@ -2158,6 +2226,15 @@ function renderSpiralPlan() {
   const tasks = sessionTasks(program, selectedDay);
   const activeStrands = spiral.strands.filter((strand) => spiralHas(spiral, strand, selectedDay));
   const chapter = chapterOf(selectedDay);
+  // Bản sinh tự động (chưa đắp phần sửa) dùng làm gợi ý trong ô nhập: admin thấy
+  // ngay hệ thống định viết gì, để trống thì giữ nguyên bản đó.
+  const summary = sessionSummary(program, selectedDay);
+  const baseSummary = sessionSummary(program, selectedDay, true);
+  const baseTasks = sessionTasks(program, selectedDay, true);
+  const edit = dayEditOf(program, selectedDay) || { title: "", tasks: {} };
+  const editValue = (idx, field) => (edit.tasks && edit.tasks[idx] && edit.tasks[idx][field]) || "";
+  const editing = Boolean(adminUi.editDay);
+  const edited = hasDayEdit(program, selectedDay);
 
   return `
     <div class="card">
@@ -2174,7 +2251,7 @@ function renderSpiralPlan() {
       </div>
       <p class="muted spiral-note">
         Mỗi hàng là một mảng ngôn ngữ. Ô đậm là buổi vào bài mới, ô nhạt là buổi quay lại theo khoảng cách giãn dần
-        (+1, +3, +6, +10, +15, +21, +28 buổi). Bấm vào một buổi để xem task chi tiết.
+        (+1, +3, +6, +10, +15, +21, +28 buổi). Bấm vào một buổi để xem và sửa nội dung buổi đó ngay bên dưới.
       </p>
       <div class="spiral-legend">
         ${Object.entries(spiralGroupLabels).map(([key, label]) => `
@@ -2186,8 +2263,8 @@ function renderSpiralPlan() {
         <div class="spiral-grid" style="--spiral-cols:${spiral.sessions}">
           <div class="spiral-corner">Mảng ngôn ngữ</div>
           ${days.map((day) => `
-            <button class="spiral-head ${SPIRAL_MILESTONES.includes(day) ? "milestone" : ""} ${day === selectedDay ? "active" : ""}"
-              data-action="select-day" data-day="${day}" title="Buổi ${day}">${day}</button>
+            <button class="spiral-head ${SPIRAL_MILESTONES.includes(day) ? "milestone" : ""} ${hasDayEdit(program, day) ? "edited" : ""} ${day === selectedDay ? "active" : ""}"
+              data-action="select-day" data-day="${day}" title="Buổi ${day}${hasDayEdit(program, day) ? " · đã biên soạn tay" : ""}">${day}</button>
           `).join("")}
           ${spiral.strands.map((strand) => `
             <div class="spiral-label ${strand.group}" title="${escapeHtml(strand.detail)}">
@@ -2208,9 +2285,18 @@ function renderSpiralPlan() {
       </div>
     </div>
     <div class="card">
-      <div class="section-title">
-        <h3>Buổi ${selectedDay} · Chặng ${chapter}/${SPIRAL_CHAPTERS}</h3>
-        <span class="pill">${SPIRAL_MILESTONES.includes(selectedDay) ? "Buổi mốc" : "45 phút"}</span>
+      <div class="section-title day-head">
+        <div>
+          <h3>Buổi ${selectedDay} · Chặng ${chapter}/${SPIRAL_CHAPTERS}</h3>
+          <p class="day-head-title">${escapeHtml(summary.title)}</p>
+        </div>
+        <div class="day-head-actions">
+          ${edited ? `<span class="pill pill-edited">Đã biên soạn tay</span>` : ""}
+          <span class="pill">${SPIRAL_MILESTONES.includes(selectedDay) ? "Buổi mốc" : "45 phút"}</span>
+          <button class="action-btn ${editing ? "is-on" : ""}" data-action="toggle-day-edit">
+            ${editing ? "Xong" : "Sửa nội dung buổi này"}
+          </button>
+        </div>
       </div>
       <div class="spiral-chips">
         ${activeStrands.map((strand) => {
@@ -2223,28 +2309,78 @@ function renderSpiralPlan() {
         `;
         }).join("")}
       </div>
-      <div class="session-tasks">
-        ${tasks.map((task, idx) => `
-          <div class="task-item ${task.tone}">
-            <div class="task-index">${idx + 1}</div>
-            <div class="task-body">
-              <div class="task-line">
-                <strong>${escapeHtml(task.title)}</strong>
-                ${task.step ? `<span class="task-step">${escapeHtml(task.step)}</span>` : ""}
+      ${editing ? renderDayEditor() : `
+        <div class="session-tasks">
+          ${tasks.map((task, idx) => `
+            <div class="task-item ${task.tone}">
+              <div class="task-index">${idx + 1}</div>
+              <div class="task-body">
+                <div class="task-line">
+                  <strong>${escapeHtml(task.title)}</strong>
+                  ${task.step ? `<span class="task-step">${escapeHtml(task.step)}</span>` : ""}
+                </div>
+                ${task.instruction ? `<div class="task-instruction">${escapeHtml(task.instruction)}</div>` : ""}
+                <div class="muted">${escapeHtml(task.detail)}</div>
               </div>
-              ${task.instruction ? `<div class="task-instruction">${escapeHtml(task.instruction)}</div>` : ""}
-              <div class="muted">${escapeHtml(task.detail)}</div>
+              <span class="task-time">${task.time}</span>
             </div>
-            <span class="task-time">${task.time}</span>
-          </div>
-        `).join("")}
-      </div>
+          `).join("")}
+        </div>
+      `}
       <div class="spiral-steps">
         <button class="action-btn" data-action="select-day" data-day="${Math.max(1, selectedDay - 1)}" ${selectedDay === 1 ? "disabled" : ""}>← Buổi trước</button>
         <button class="action-btn" data-action="select-day" data-day="${Math.min(spiral.sessions, selectedDay + 1)}" ${selectedDay === spiral.sessions ? "disabled" : ""}>Buổi sau →</button>
       </div>
     </div>
   `;
+
+  // Form biên soạn nằm ngay trong card của buổi đang chọn. Ô để trống nghĩa là
+  // dùng bản sinh tự động — gợi ý trong ô cho thấy bản đó viết gì.
+  function renderDayEditor() {
+    return `
+      <div class="day-editor">
+        <p class="muted day-editor-note">
+          Sửa tới đâu lưu tới đó. Ô để trống thì buổi này vẫn chạy nội dung sinh tự động (chữ mờ trong ô).
+          Nội dung sửa ở đây hiện luôn trên thẻ Day và trang học của học viên.
+        </p>
+        <label class="day-field">
+          <span>Tên buổi</span>
+          <input data-day-field="title" value="${escapeHtml(edit.title || "")}" placeholder="${escapeHtml(baseSummary.title)}" />
+        </label>
+        ${baseTasks.map((task, idx) => `
+          <div class="day-task ${task.tone}">
+            <div class="day-task-head">
+              <span class="task-index">${idx + 1}</span>
+              <strong>${escapeHtml(task.step || "Task")}</strong>
+              <span class="muted">mặc định: ${escapeHtml(task.title)}</span>
+            </div>
+            <div class="day-field-grid">
+              <label class="day-field">
+                <span>Tiêu đề task</span>
+                <input data-day-field="${idx}.title" value="${escapeHtml(editValue(idx, "title"))}" placeholder="${escapeHtml(task.title)}" />
+              </label>
+              <label class="day-field short">
+                <span>Thời lượng</span>
+                <input data-day-field="${idx}.time" value="${escapeHtml(editValue(idx, "time"))}" placeholder="${escapeHtml(task.time)}" />
+              </label>
+              <label class="day-field wide">
+                <span>Câu lệnh lớp</span>
+                <input data-day-field="${idx}.instruction" value="${escapeHtml(editValue(idx, "instruction"))}" placeholder="${escapeHtml(task.instruction || "")}" />
+              </label>
+              <label class="day-field wide">
+                <span>Nội dung chi tiết</span>
+                <textarea data-day-field="${idx}.detail" rows="2" placeholder="${escapeHtml(task.detail)}">${escapeHtml(editValue(idx, "detail"))}</textarea>
+              </label>
+            </div>
+          </div>
+        `).join("")}
+        <div class="day-editor-foot">
+          <button class="action-btn danger" data-action="reset-day-edit" ${edited ? "" : "disabled"}>Khôi phục mặc định buổi ${selectedDay}</button>
+          <button class="primary-btn" data-action="toggle-day-edit">Xong</button>
+        </div>
+      </div>
+    `;
+  }
 }
 
 function badgeClass(key) {
@@ -2354,14 +2490,14 @@ function renderAdminDashboard() {
       <div class="admin-stat"><div class="metric-value">${adminUsers.filter((u) => u.roleKey === "student").length}</div><div class="metric-label">Học viên</div></div>
       <div class="admin-stat"><div class="metric-value">${lessonOrder.length}</div><div class="metric-label">Bài giảng</div></div>
       <div class="admin-stat"><div class="metric-value">${pending}</div><div class="metric-label">Bài chờ chấm</div></div>
-      <div class="admin-stat"><div class="metric-value">${adminSyllabus.length}</div><div class="metric-label">Syllabus</div></div>
+      <div class="admin-stat"><div class="metric-value">${programList.length}</div><div class="metric-label">Chương trình</div></div>
     </div>
     <div class="admin-shortcuts">
       <button class="admin-shortcut" data-page="users"><strong>Người dùng</strong><span class="muted">Quản lý học viên và giáo viên</span></button>
       <button class="admin-shortcut" data-page="lessons"><strong>Bài giảng</strong><span class="muted">Danh sách và trạng thái bài học</span></button>
       <button class="admin-shortcut" data-page="grading"><strong>Chấm bài</strong><span class="muted">${pending} bài đang chờ</span></button>
       <button class="admin-shortcut" data-page="fees"><strong>Học phí</strong><span class="muted">Theo dõi công nợ học viên</span></button>
-      <button class="admin-shortcut" data-page="syllabus"><strong>Syllabus</strong><span class="muted">Biên soạn Movers / Flyers / 2019 Khóa 1 / Seed 39 Khóa 2</span></button>
+      <button class="admin-shortcut" data-page="journey"><strong>Lộ trình ${SPIRAL_SESSIONS} buổi</strong><span class="muted">Ma trận xoắn ốc và biên soạn nội dung từng buổi</span></button>
     </div>
     <div class="card admin-panel">
       <div class="admin-panel-head">
@@ -2677,48 +2813,6 @@ function renderAdminGradeDetail(item) {
   `;
 }
 
-function renderAdminSyllabus() {
-  const rows = adminSyllabus.filter((item) => {
-    const byLevel = adminUi.syllabusFilter === "all" || item.level === adminUi.syllabusFilter;
-    const byQuery = !adminUi.query || matchesQuery(`${item.code} ${item.name} ${item.owner}`);
-    return byLevel && byQuery;
-  });
-  return `
-    <div class="card admin-panel">
-      <div class="admin-panel-head">
-        <h3>Danh sách syllabus <span class="admin-count">(${rows.length})</span></h3>
-        <button class="admin-add" data-action="admin-add">+ Thêm</button>
-      </div>
-      <div class="admin-toolbar">
-        <input id="adminSearch" data-admin-field="query" placeholder="Tìm kiếm syllabus..." />
-        <select data-admin-field="syllabusFilter">
-          <option value="all">Tất cả trình độ</option>
-          ${programList.map((item) => `<option value="${escapeHtml(item)}" ${item === adminUi.syllabusFilter ? "selected" : ""}>${item}</option>`).join("")}
-        </select>
-        <select>
-          <option>Tất cả trạng thái</option>
-          <option>Đã xuất bản</option>
-          <option>Đang soạn</option>
-        </select>
-      </div>
-      ${renderAdminTable(
-        ["MÃ", "TÊN SYLLABUS", "TRÌNH ĐỘ", "SỐ UNIT", "NGƯỜI SOẠN", "TRẠNG THÁI", "THAO TÁC"],
-        rows.map((item) => `
-          <tr>
-            <td>${item.code}</td>
-            <td><button class="admin-link">${item.name}</button></td>
-            <td><span class="badge badge-yellow">${item.level}</span></td>
-            <td>${item.units}</td>
-            <td>${item.owner}</td>
-            <td><span class="badge ${badgeClass(item.statusKey)}">${item.status}</span></td>
-            <td>${renderTrashBtn()}</td>
-          </tr>
-        `)
-      )}
-    </div>
-  `;
-}
-
 function renderAdminFees() {
   const rows = adminFees.filter((item) => {
     const byStatus = adminUi.feeFilter === "all" || item.statusKey === adminUi.feeFilter;
@@ -2805,7 +2899,7 @@ function pageCopy() {
     return pages[state.activeStudentPage] || pages.profile;
   }
   const pages = {
-    dashboard: ["Quản trị hệ thống", "Dashboard", "Theo dõi user, bài giảng, chấm bài và syllabus."],
+    dashboard: ["Quản trị hệ thống", "Dashboard", "Theo dõi user, bài giảng, chấm bài và học phí."],
     users: ["Quản trị hệ thống", "Quản lý người dùng", "Học viên, giáo viên và quản trị viên trong một danh sách."],
     lessons: adminUi.selectedLesson
       ? ["Quản trị hệ thống", "Chi tiết bài giảng", "Xem và chỉnh các trường nội dung của bài học."]
@@ -2814,8 +2908,7 @@ function pageCopy() {
       ? ["Quản trị hệ thống", "Chấm bài", "Xem bài học viên đã làm và chấm theo nội dung unit."]
       : ["Quản trị hệ thống", "Quản lý chấm bài", "Xem bài nộp, điểm số và các bài đang chờ chấm."],
     fees: ["Quản trị hệ thống", "Quản lý học phí", "Theo dõi học phí, công nợ và hạn đóng của học viên."],
-    syllabus: ["Quản trị hệ thống", "Biên soạn syllabus", "Quản lý chương trình Movers, Flyers, 2019 Khóa 1 và Seed 39 Khóa 2."],
-    journey: ["Quản trị hệ thống", `Lộ trình ${SPIRAL_SESSIONS} buổi`, "Ma trận xoắn ốc: buổi nào dạy mảng nào, mảng nào quay lại khi nào."],
+    journey: ["Quản trị hệ thống", `Lộ trình ${SPIRAL_SESSIONS} buổi`, "Ma trận xoắn ốc và biên soạn nội dung của từng buổi ngay tại đây."],
   };
   return pages[state.activeAdminPage] || pages.dashboard;
 }
@@ -2859,7 +2952,6 @@ function renderBody() {
   else if (role === "admin" && page === "lessons") body = renderAdminLessons();
   else if (role === "admin" && page === "grading") body = renderAdminGrading();
   else if (role === "admin" && page === "fees") body = renderAdminFees();
-  else if (role === "admin" && page === "syllabus") body = renderAdminSyllabus();
   else body = role === "admin" ? renderAdminDashboard() : renderStudentProfile();
 
   el("content").innerHTML = body;
@@ -3038,6 +3130,19 @@ function bindEvents() {
       }
       return;
     }
+    /* --- Biên soạn nội dung một buổi ngay trên màn lộ trình --- */
+    if (action === "toggle-day-edit") {
+      adminUi.editDay = !adminUi.editDay;
+      render();
+      return;
+    }
+    if (action === "reset-day-edit") {
+      const program = spiralPlans[state.spiralProgram] ? state.spiralProgram : spiralPrograms[0];
+      clearDayEdit(program, state.selectedDay);
+      saveState();
+      render();
+      return;
+    }
     /* --- Trang học tương tác của một buổi --- */
     if (action === "play-video") {
       playVideo(target);
@@ -3125,6 +3230,15 @@ function bindEvents() {
   });
 
   document.addEventListener("input", (event) => {
+    // Ô biên soạn buổi học: ghi thẳng vào state và lưu, cố tình KHÔNG render lại
+    // vì render() thay cả cây DOM, gõ được một chữ là mất con trỏ.
+    const dayField = event.target.getAttribute && event.target.getAttribute("data-day-field");
+    if (dayField) {
+      const program = spiralPlans[state.spiralProgram] ? state.spiralProgram : spiralPrograms[0];
+      setDayEdit(program, state.selectedDay, dayField, event.target.value);
+      saveState();
+      return;
+    }
     const field = event.target.getAttribute && event.target.getAttribute("data-admin-field");
     if (!field) return;
     adminUi[field] = event.target.value;
@@ -3168,6 +3282,7 @@ function bindEvents() {
       else preview.innerHTML = `<audio src="${escapeHtml(value)}" controls></audio>`;
       return;
     }
+    if (event.target.getAttribute && event.target.getAttribute("data-day-field")) return;
     const field = event.target.getAttribute && event.target.getAttribute("data-admin-field");
     if (!field || field === "query") return;
     adminUi[field] = event.target.value;

@@ -575,10 +575,14 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+/* Cột buổi co giãn: 22px là bề ngang tối thiểu, còn thừa bao nhiêu thì 20 cột
+   chia đều nốt. Trước đây cột cứng 22px nên ma trận chỉ chiếm ~650px, bỏ trống
+   nửa phải của card. min-width:max-content vẫn giữ để màn hẹp thì cuộn ngang
+   thay vì bóp cột nhỏ hơn 22px. */
 .spiral-grid {
   display: grid;
-  grid-template-columns: 190px repeat(var(--spiral-cols), 22px);
-  gap: 2px;
+  grid-template-columns: minmax(150px, 190px) repeat(var(--spiral-cols), minmax(22px, 1fr));
+  gap: 3px;
   padding: 8px;
   min-width: max-content;
 }
@@ -600,16 +604,35 @@ textarea {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 2px 0;
   cursor: pointer;
   border-radius: 4px;
+  position: relative;
 }
 
 .spiral-head.milestone {
   color: #dc2626;
   font-weight: 800;
+}
+
+/* Chấm nhỏ dưới số buổi = buổi đã được biên soạn tay, không còn chạy bản sinh
+   tự động. Nhìn hàng số là biết đã soạn tới đâu. */
+.spiral-head.edited::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.spiral-head.active.edited::after {
+  background: #fff;
 }
 
 .spiral-head.active {
@@ -797,6 +820,166 @@ textarea {
 .spiral-steps .action-btn[disabled] {
   opacity: 0.45;
   cursor: default;
+}
+
+/* ---------- Biên soạn nội dung một buổi ngay trên màn lộ trình ---------- */
+
+.day-head {
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.day-head h3 {
+  margin: 0;
+}
+
+.day-head-title {
+  margin: 4px 0 0;
+  font-weight: 600;
+  color: var(--blue-2);
+}
+
+.day-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-head-actions .action-btn {
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.day-head-actions .action-btn.is-on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+.pill-edited {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.day-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.day-editor-note {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.day-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.day-field > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.day-field input,
+.day-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: var(--panel-strong);
+  resize: vertical;
+}
+
+.day-field input:focus,
+.day-field textarea:focus {
+  outline: 2px solid var(--blue-soft);
+  border-color: var(--blue);
+}
+
+/* Chữ gợi ý = nội dung sinh tự động. Để mờ hơn hẳn chữ thật để admin không
+   nhầm cái đang có sẵn với cái mình vừa gõ. */
+.day-field input::placeholder,
+.day-field textarea::placeholder {
+  color: #9aa9c2;
+  opacity: 1;
+}
+
+.day-task {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.day-task.intro { border-left-color: var(--blue); }
+.day-task.repeat { border-left-color: var(--amber); }
+.day-task.phonics { border-left-color: #7c3aed; }
+.day-task.milestone { border-left-color: #dc2626; }
+.day-task.literacy { border-left-color: #0d9488; }
+.day-task.check { border-left-color: #ca8a04; }
+.day-task.routine { border-left-color: #64748b; }
+
+.day-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.day-task-head .muted {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.day-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 10px;
+}
+
+.day-field-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.day-editor-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.day-editor-foot .action-btn.danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.day-editor-foot .action-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+@media (max-width: 720px) {
+  .day-field-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Roadmap: danh sách Day của một chương trình */

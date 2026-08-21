@@ -4,3 +4,9 @@
 
 # Thư mục làm việc của công cụ
 .claude/
+
+# Thư mục build để deploy
+dist/
+
+# Cache của wrangler
+.wrangler/

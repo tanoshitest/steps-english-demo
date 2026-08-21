@@ -1,4 +1,6 @@
-const STORAGE_KEY = "steps-demo-state-v5";
+// v6: buổi học đổi từ 6 task sang 8 task theo khung 10 Step của trung tâm.
+// `taskDone` lưu theo chỉ số task nên phải đổi khoá, không dùng lại state cũ được.
+const STORAGE_KEY = "steps-demo-state-v6";
 
 const lessonCatalog = {
   "Say hello": {
@@ -372,6 +374,98 @@ const SPIRAL_MILESTONES = Array.from(
 // Buổi `day` thuộc chặng thứ mấy.
 const chapterOf = (day) => Math.min(Math.ceil(day / SPIRAL_CHAPTER), SPIRAL_CHAPTERS);
 
+/* ---------- Khung chuyên môn của trung tâm ----------
+   Toàn bộ phần dưới bám theo tài liệu "Định hướng giáo trình STEPS":
+   INPUT → UNDERSTAND → INTERACT → USE → REPEAT → READ → WRITE → CAMBRIDGE.
+   Bốn nguyên tắc cốt lõi được cài thẳng vào cách sinh buổi học:
+   1. Vocabulary in context — từ luôn đi kèm cụm/câu, không đứng một mình.
+   2. Teach language through use — không mở bài bằng giảng ngữ pháp.
+   3. Repetition is compulsory — mỗi mảng ngôn ngữ gặp lại 5 lần theo SPIRAL_OFFSETS.
+   4. Recycling — mỗi buổi phải nêu rõ NEW / RECYCLE / REUSE. */
+
+// Kiến trúc 1 Unit — 10 Step. Một buổi 45 phút gom 10 Step thành 8 task.
+const UNIT_STEPS = [
+  "Experience", "Input", "Notice", "Join in", "Use",
+  "Phonics & Early Reading", "Reading & Writing", "Listening", "Speaking", "Cambridge Checkpoint",
+];
+
+// Recycling Map — 3 vai của một mảng ngôn ngữ trong buổi.
+// Hai mốc ôn gần (+1, +3) là RECYCLE: nhận diện lại, vẫn có mẫu trước mặt.
+// Ba mốc ôn xa (+6, +10, +15) là REUSE: bắt trẻ tự dùng, không nhắc mẫu.
+const RECYCLE_OFFSETS = SPIRAL_OFFSETS.slice(0, 2);
+const REUSE_OFFSETS = SPIRAL_OFFSETS.slice(2);
+
+const ROLE_META = {
+  new: { label: "NEW", note: "Ngôn ngữ mới của buổi này." },
+  recycle: { label: "RECYCLE", note: "Ngôn ngữ buổi trước, nhận diện lại có hướng dẫn." },
+  reuse: { label: "REUSE", note: "Ngôn ngữ cũ, trẻ phải tự dùng — không nhắc mẫu." },
+  daily: { label: "DAILY", note: "Thường lệ, lặp mọi buổi." },
+  milestone: { label: "CHECK", note: "Mốc ôn tổng hợp cả chặng." },
+};
+
+function strandRole(strand, day) {
+  if (strand.daily) return "daily";
+  if (strand.fixed) return "milestone";
+  if (strand.intro === day) return "new";
+  const gap = day - (strand.intro || 0);
+  if (RECYCLE_OFFSETS.includes(gap)) return "recycle";
+  if (REUSE_OFFSETS.includes(gap)) return "reuse";
+  return "reuse";
+}
+
+// Story World — nhóm nhân vật cố định xuyên suốt giáo trình, để câu nào cũng có
+// người nói chứ không phải câu mẫu treo lơ lửng.
+const storyCast = [
+  { name: "Alex", note: "bạn nam dẫn chuyện" },
+  { name: "Lucy", note: "bạn nữ hay hỏi" },
+  { name: "Sam", note: "em trai của Lucy" },
+  { name: "Anna", note: "bạn mới trong lớp" },
+  { name: "Ben", note: "bạn thích đồ chơi" },
+  { name: "Grace", note: "cô giáo của lớp" },
+];
+
+// Nhân vật của một mảng ngôn ngữ: chốt theo id nên buổi nào strand đó quay lại
+// vẫn là nhân vật ấy — trẻ nhận ra người quen chứ không phải tên ngẫu nhiên.
+function castFor(strand) {
+  if (!strand) return storyCast[0];
+  let sum = 0;
+  for (let i = 0; i < strand.id.length; i += 1) sum += strand.id.charCodeAt(i);
+  return storyCast[sum % storyCast.length];
+}
+
+// 10 chủ đề Cambridge Starters — dùng làm chuẩn đầu ra, không phải nội dung dạy.
+const STARTERS_TOPICS = [
+  "Our Names", "My Body", "My Toys", "Activities", "At the Zoo",
+  "At the Clothes Shop", "My Favourite Food", "At Home", "At School", "At the Beach",
+];
+
+const starterTopicByStrand = {
+  greeting: "Our Names", reflex: "Our Names", goodbye: "Our Names",
+  colors: "At the Zoo", animals: "At the Zoo", "story-bear": "At the Zoo",
+  traffic: "Activities", actions: "Activities",
+  morning: "At Home", "story-morning": "At Home", items: "At Home", flower: "At Home",
+  body: "My Body", "song-head": "My Body",
+  clothes: "At the Clothes Shop", "song-shoes": "At the Clothes Shop",
+  school: "At School", picture: "At School", people: "At School",
+  lunch: "My Favourite Food", taste: "My Favourite Food", "song-lunch": "My Favourite Food",
+  body2: "My Body", toys: "My Toys", "song-toys": "My Toys",
+  "prep-1": "At Home", "prep-2": "At Home", where: "At Home",
+};
+
+const starterTopicFor = (strand) =>
+  (strand && starterTopicByStrand[strand.id]) || (strand?.group === "phonics" ? "Phonics" : "Our Names");
+
+// 7 mẫu câu lệnh chuẩn — mọi hoạt động chỉ được dùng một trong bảy mẫu này.
+const INSTRUCTION = {
+  lookSay: "Look and say",
+  listenPoint: "Listen and point",
+  listenTick: "Listen and tick",
+  lookMatch: "Look and match",
+  readChoose: "Read and choose",
+  askAnswer: "Ask and answer",
+  drawColour: "Draw and colour",
+};
+
 const reflexQuestions = [
   "What's your name?",
   "How old are you?",
@@ -503,11 +597,18 @@ function sessionSummary(program, day) {
   const repeat = active.filter((strand) => !strand.daily && !strand.fixed && strand.intro !== day);
   const label = (list) => list.map((strand) => strand.label).join(" · ");
   const focus = fresh.length ? fresh : repeat.length ? repeat : recentStrands(spiral, day, () => true, 2);
+  // Recycling Map của buổi (mục VI tài liệu định hướng): mảng nào mới, mảng nào
+  // nhận diện lại, mảng nào bắt trẻ tự dùng.
+  const recycleMap = { new: [], recycle: [], reuse: [], daily: [], milestone: [] };
+  active.forEach((strand) => recycleMap[strandRole(strand, day)].push(strand));
   return {
     active,
     milestone,
     fresh,
     repeat,
+    recycleMap,
+    cast: castFor(focus[0] || active[0]),
+    starter: starterTopicFor(focus.find((strand) => strand.group !== "phonics") || focus[0]),
     unit: focus.find((strand) => strand.unit)?.unit || "",
     title: milestone
       ? "Review & Show — mốc chặng"
@@ -538,52 +639,107 @@ function sessionTasks(program, day) {
   const q2 = reflexQuestions[(day * 2 - 1) % reflexQuestions.length];
   const names = (list) => list.map((strand) => strand.label).join(" · ");
 
+  // Task 3 mang ngôn ngữ MỚI nhưng ở mức tiếp nhận (Join in + Listening),
+  // task 4 mang ngôn ngữ CŨ ở mức sản sinh (Use). Đúng thứ tự của tài liệu:
+  // gặp → hiểu → làm theo → dùng, chứ không bắt nói ngay khi vừa gặp.
   const newTask = isMilestone
-    ? { time: "12'", title: "Ôn tổng hợp chặng", detail: `Chạy lại toàn bộ mẫu câu của buổi ${Math.max(day - SPIRAL_CHAPTER + 1, 1)}-${day} theo trạm.`, tone: "milestone" }
+    ? {
+        time: "6'", title: "Ôn tổng hợp chặng", step: "Step 4 + 8", instruction: INSTRUCTION.listenTick,
+        detail: `Chạy lại mẫu câu buổi ${Math.max(day - SPIRAL_CHAPTER + 1, 1)}-${day} theo trạm nghe - chỉ - chọn.`,
+        tone: "milestone",
+      }
     : fresh.length
-      ? { time: "12'", title: `Bài mới: ${names(fresh)}`, detail: fresh.map((strand) => strand.detail).join(" "), tone: "intro" }
+      ? {
+          time: "6'", title: `Join in & Listening: ${names(fresh)}`, step: "Step 4 + 8", instruction: INSTRUCTION.listenTick,
+          detail: `${fresh.map((strand) => strand.detail).join(" ")} Trẻ point, touch, act rồi mới chọn đáp án.`,
+          tone: "repeat",
+        }
       : {
-          time: "12'",
-          title: "Mở rộng ngữ cảnh",
+          time: "6'", title: "Join in & Listening", step: "Step 4 + 8", instruction: INSTRUCTION.listenTick,
           detail: fallbackTopics.length
-            ? `Đưa ${names(fallbackTopics.slice(0, 2))} vào tình huống mới (đóng vai, mô tả tranh).`
+            ? `Đưa ${names(fallbackTopics.slice(0, 2))} vào tình huống mới: nghe, chỉ tranh rồi chọn.`
             : "Làm quen lớp, luật lớp học và tên các bạn.",
-          tone: "intro",
+          tone: "repeat",
         };
 
   const recycleTask = isMilestone
-    ? { time: "8'", title: "Mini show", detail: "Mỗi bạn trình bày 3-4 câu trước lớp, cả lớp vỗ tay chấm sao.", tone: "milestone" }
+    ? {
+        time: "6'", title: "Mini show", step: "Step 5", instruction: INSTRUCTION.askAnswer,
+        detail: "Mỗi bạn trình bày 3-4 câu trước lớp, cả lớp vỗ tay chấm sao.", tone: "milestone",
+      }
     : {
-        time: "8'",
-        title: "Ôn xoắn ốc",
+        time: "6'", title: "Use — hỏi đáp cặp đôi", step: "Step 5", instruction: INSTRUCTION.askAnswer,
         detail: recycle.length
-          ? `Quay lại: ${names(recycle.slice(0, 3))}.`
+          ? `Dùng lại trong hội thoại: ${names(recycle.slice(0, 3))}. Controlled → guided → pair work.`
           : fallbackTopics.length
-            ? `Nhắc lại nhanh ${names(fallbackTopics)} bằng flashcard.`
-            : "Nhắc lại mẫu câu chào hỏi bằng trò chơi chuyền bóng.",
-        tone: "repeat",
+            ? `Hỏi đáp cặp đôi quanh ${names(fallbackTopics)} — không nhìn mẫu.`
+            : "Hỏi đáp chào hỏi bằng trò chơi chuyền bóng.",
+        tone: "intro",
       };
 
+  const topicNames = names((fresh.length ? fresh : fallbackTopics).slice(0, 2)) || "ngôn ngữ buổi này";
+  const cast = castFor(fresh[0] || fallbackTopics[0] || active[0]);
+  const starter = starterTopicFor(fresh[0] || fallbackTopics[0]);
+  const reuse = active.filter((strand) => strandRole(strand, day) === "reuse");
+
+  // 8 task = 10 Step gói lại cho vừa 45 phút. Step 1+2 chung một task mở bài,
+  // Step 4 và Step 8 chung một task nghe-và-làm-theo.
   return [
-    { time: "5'", title: "Warm-up", detail: "Chào hỏi, điểm danh, hát Hello Song.", tone: "routine" },
-    { time: "5'", title: "Phản xạ", detail: `${q1} — ${q2}`, tone: "routine" },
+    {
+      time: "5'",
+      title: "Experience & Input",
+      step: "Step 1-2",
+      instruction: INSTRUCTION.listenPoint,
+      detail: `${cast.name} mở đầu tình huống. Trẻ nghe story/song/teacher talk và chỉ theo, chưa cần nói.`,
+      tone: "routine",
+    },
+    {
+      time: "6'",
+      title: "Notice",
+      step: "Step 3",
+      instruction: INSTRUCTION.lookSay,
+      detail: `Nhận ra từ và cụm từ trong câu: ${topicNames}. Từ luôn nằm trong câu, không tách lẻ.`,
+      tone: "intro",
+    },
     newTask,
     recycleTask,
     {
-      time: "8'",
-      title: "Phonics",
+      time: "6'",
+      title: "Phonics & Early Reading",
+      step: "Step 6",
+      instruction: INSTRUCTION.lookMatch,
       detail: phonics.length
-        ? `${names(phonics)} — ${phonics[0].detail}`
+        ? `${names(phonics)} — âm → động tác → nhận diện → ghép vần → đọc từ.`
         : fallbackPhonics.length
-          ? `Ôn lại ${names(fallbackPhonics)} — nghe, bắt chước và ghép vần nhanh.`
+          ? `Ôn ${names(fallbackPhonics)} — nghe, làm động tác và ghép vần nhanh.`
           : "Nghe và bắt chước âm đầu tiên, vỗ tay theo âm tiết.",
       tone: "phonics",
     },
     {
-      time: "7'",
-      title: "Chơi & Chào",
-      detail: `Game củng cố ${isMilestone ? "toàn chặng" : names((fresh.length ? fresh : fallbackTopics).slice(0, 2)) || "từ vựng buổi này"}, hát Goodbye Song, giao task về nhà.`,
+      time: "5'",
+      title: "Reading & Writing",
+      step: "Step 7",
+      instruction: INSTRUCTION.readChoose,
+      detail: `Đọc câu ngắn có từ vừa học rồi chọn tranh đúng. Về nhà: ${INSTRUCTION.drawColour.toLowerCase()}.`,
+      tone: "literacy",
+    },
+    {
+      time: "6'",
+      title: "Speaking",
+      step: "Step 9",
+      instruction: INSTRUCTION.lookSay,
+      detail: reuse.length
+        ? `Nói về mình bằng mẫu câu đã học — có dùng lại ${names(reuse.slice(0, 2))} mà không nhắc mẫu.`
+        : "Nghe mẫu → nói theo → nói với bạn → nói về mình.",
       tone: "routine",
+    },
+    {
+      time: "5'",
+      title: "Cambridge Checkpoint",
+      step: "Step 10",
+      instruction: INSTRUCTION.readChoose,
+      detail: `Dạng bài Starters chủ đề “${starter}”. Kiểm tra nhẹ cuối buổi, không biến cả buổi thành luyện đề.`,
+      tone: "check",
     },
   ];
 }
@@ -1214,7 +1370,7 @@ function renderRoadmapDays(program) {
     <div class="card">
       <div class="section-title">
         <h3>${escapeHtml(program)}</h3>
-        <span class="pill">${spiral.sessions} buổi · 6 task mỗi buổi</span>
+        <span class="pill">${spiral.sessions} buổi · 8 task theo 10 Step</span>
       </div>
       <p class="muted spiral-note">Bấm vào một Day để mở trang học của buổi đó.</p>
       <div class="day-list">
@@ -1238,11 +1394,15 @@ function renderRoadmapDays(program) {
               <div class="muted day-unit">${info.unit ? `Unit: ${escapeHtml(info.unit)}` : "Nếp lớp, phản xạ và trò chơi ngôn ngữ"}</div>
               <div class="progress"><span style="width:${progress}%"></span></div>
               <div class="spiral-chips">
-                ${chips.length ? chips.map((strand) => `
+                ${chips.length ? chips.map((strand) => {
+                  const role = strandRole(strand, day);
+                  return `
                   <span class="spiral-chip ${strand.group} ${strand.intro === day ? "intro" : ""}">
-                    ${escapeHtml(strand.label)}${strand.intro === day ? " · mới" : ""}
+                    ${escapeHtml(strand.label)}
+                    <em class="role-chip ${role}">${escapeHtml(ROLE_META[role].label)}</em>
                   </span>
-                `).join("") : `<span class="spiral-chip routine">Thường lệ &amp; phản xạ</span>`}
+                `;
+                }).join("") : `<span class="spiral-chip routine">Thường lệ &amp; phản xạ</span>`}
               </div>
             </button>
           `;
@@ -1282,6 +1442,36 @@ function renderProgramUnits(program) {
   `;
 }
 
+// Language Recycling Map (mục VI tài liệu định hướng): mỗi buổi phải nói rõ
+// mảng nào là mới, mảng nào nhận diện lại, mảng nào bắt trẻ tự dùng.
+function renderRecycleMap(info, day) {
+  const map = info.recycleMap || {};
+  const order = ["new", "recycle", "reuse", "daily", "milestone"];
+  const cols = order.filter((role) => (map[role] || []).length);
+  if (!cols.length) return "";
+  return `
+    <div class="card">
+      <div class="section-title">
+        <h3>Language Recycling Map · Day ${day}</h3>
+        <span class="pill">NEW / RECYCLE / REUSE</span>
+      </div>
+      <div class="recycle-map">
+        ${cols.map((role) => `
+          <div class="recycle-col ${role}">
+            <div class="recycle-head">
+              <span class="role-chip ${role}">${escapeHtml(ROLE_META[role].label)}</span>
+              <span class="muted">${escapeHtml(ROLE_META[role].note)}</span>
+            </div>
+            <ul>
+              ${map[role].map((strand) => `<li>${escapeHtml(strand.label)}</li>`).join("")}
+            </ul>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderRoadmapDay(program, day) {
   const spiral = buildSpiral(program);
   if (!spiral) return renderProgramUnits(program);
@@ -1301,10 +1491,10 @@ function renderRoadmapDay(program, day) {
         <div>
           <div class="pill">Chặng ${chapterOf(current)}/${SPIRAL_CHAPTERS} · Day ${current} / ${spiral.sessions}</div>
           <h2>${escapeHtml(info.title)}</h2>
-          <p>Buổi 45 phút gồm 6 task. Nội dung chính lấy từ unit <strong>${escapeHtml(unitName)}</strong> — ${escapeHtml(lesson.subtitle)}</p>
+          <p>Buổi 45 phút chạy đủ 10 Step trong ${tasks.length} task. Nội dung chính lấy từ unit <strong>${escapeHtml(unitName)}</strong> — ${escapeHtml(lesson.subtitle)}</p>
           <div class="hero-actions">
             <button class="primary-btn" data-action="open-task" data-task="0">Bắt đầu buổi học</button>
-            <button class="secondary-btn" data-action="open-task" data-task="5">Tới phần nói</button>
+            <button class="secondary-btn" data-action="open-task" data-task="6">Tới phần nói</button>
           </div>
         </div>
         <div class="package-card">
@@ -1320,24 +1510,22 @@ function renderRoadmapDay(program, day) {
         </div>
       </div>
     </div>
+    ${renderRecycleMap(info, current)}
     <div class="card">
       <div class="section-title">
-        <h3>6 task của buổi</h3>
+        <h3>${tasks.length} task của buổi</h3>
         <span class="pill">${info.milestone ? "Buổi mốc" : "45 phút"}</span>
-      </div>
-      <div class="spiral-chips">
-        ${info.active.map((strand) => `
-          <span class="spiral-chip ${strand.group} ${strand.intro === current ? "intro" : ""}">
-            ${escapeHtml(strand.label)}${strand.intro === current ? " · mới" : ""}
-          </span>
-        `).join("")}
       </div>
       <div class="session-tasks">
         ${tasks.map((task, idx) => `
           <div class="task-item ${task.tone}">
             <div class="task-index">${idx + 1}</div>
             <div class="task-body">
-              <strong>${escapeHtml(task.title)}</strong>
+              <div class="task-line">
+                <strong>${escapeHtml(task.title)}</strong>
+                ${task.step ? `<span class="task-step">${escapeHtml(task.step)}</span>` : ""}
+              </div>
+              ${task.instruction ? `<div class="task-instruction">${escapeHtml(task.instruction)}</div>` : ""}
               <div class="muted">${escapeHtml(task.detail)}</div>
             </div>
             <span class="task-time">${task.time}</span>
@@ -1368,7 +1556,7 @@ function renderUnitDetail(unitName) {
           <p>${escapeHtml(lesson.subtitle)} Bài học này được thiết kế như một gói hoàn chỉnh: truyện, bài hát, từ vựng, cấu trúc, phonics và ý nghĩa giáo dục.</p>
           <div class="hero-actions">
             <button class="primary-btn" data-action="open-task" data-task="0">Bắt đầu buổi học</button>
-            <button class="secondary-btn" data-action="open-task" data-task="5">Tới phần nói</button>
+            <button class="secondary-btn" data-action="open-task" data-task="6">Tới phần nói</button>
           </div>
         </div>
         <div class="package-card">
@@ -1389,28 +1577,36 @@ function renderUnitDetail(unitName) {
 }
 
 // Unit rời (chương trình chưa có lộ trình theo buổi) vẫn dùng chung trang học
-// tương tác, chỉ khác là 6 task dựng thẳng từ gói bài chứ không từ ma trận xoắn ốc.
+// tương tác, chỉ khác là 8 task dựng thẳng từ gói bài chứ không từ ma trận xoắn ốc.
+// Thứ tự và tên Step phải trùng khung 10 Step, nếu không hai lối vào cùng một
+// trang học sẽ lệch nhau.
 function unitTasks(name) {
   const lesson = getLesson(name);
   return [
-    { time: "5'", title: "Warm-up", detail: "Chào hỏi và hát Hello Song.", tone: "routine" },
-    { time: "5'", title: "Phản xạ", detail: "Hỏi đáp nhanh đầu buổi.", tone: "routine" },
-    { time: "12'", title: `Bài mới: ${name}`, detail: lesson.subtitle, tone: "intro" },
-    { time: "8'", title: "Nghe & chọn", detail: "Nghe từ và chọn đúng từ vừa nghe.", tone: "repeat" },
-    { time: "8'", title: "Phonics", detail: `Âm ${lesson.phonics.join(", ")}.`, tone: "phonics" },
-    { time: "7'", title: "Nói & Chào", detail: "Ghi âm câu mẫu rồi hát Goodbye Song.", tone: "routine" },
+    { time: "5'", title: "Experience & Input", step: "Step 1-2", instruction: INSTRUCTION.listenPoint, detail: "Nghe truyện, bài hát và teacher talk, chỉ theo tranh.", tone: "routine" },
+    { time: "6'", title: "Notice", step: "Step 3", instruction: INSTRUCTION.lookSay, detail: `Nhận ra từ trong câu: ${lesson.vocabulary.slice(0, 3).join(", ")}.`, tone: "intro" },
+    { time: "6'", title: "Join in & Listening", step: "Step 4 + 8", instruction: INSTRUCTION.listenTick, detail: lesson.subtitle, tone: "repeat" },
+    { time: "6'", title: "Use — hỏi đáp cặp đôi", step: "Step 5", instruction: INSTRUCTION.askAnswer, detail: "Hỏi đáp theo mẫu rồi đổi vai với bạn.", tone: "intro" },
+    { time: "6'", title: "Phonics & Early Reading", step: "Step 6", instruction: INSTRUCTION.lookMatch, detail: `Âm ${lesson.phonics.join(", ")} — âm, động tác, ghép vần.`, tone: "phonics" },
+    { time: "5'", title: "Reading & Writing", step: "Step 7", instruction: INSTRUCTION.readChoose, detail: "Đọc câu ngắn và chọn từ đúng.", tone: "literacy" },
+    { time: "6'", title: "Speaking", step: "Step 9", instruction: INSTRUCTION.lookSay, detail: "Ghi âm câu mẫu rồi nói câu của riêng em.", tone: "routine" },
+    { time: "5'", title: "Cambridge Checkpoint", step: "Step 10", instruction: INSTRUCTION.readChoose, detail: "Kiểm tra nhẹ dạng Starters rồi hát Goodbye Song.", tone: "check" },
   ];
 }
 
 function unitInfo(name) {
+  const strand = { id: "unit", group: "topic", label: name, unit: name, intro: 1 };
   return {
-    active: [{ id: "unit", group: "topic", label: name, unit: name }],
-    fresh: [], repeat: [], milestone: false, unit: name, title: name,
+    active: [strand],
+    fresh: [strand], repeat: [], milestone: false, unit: name, title: name,
+    recycleMap: { new: [strand], recycle: [], reuse: [], daily: [], milestone: [] },
+    cast: castFor(strand),
+    starter: starterTopicFor(strand),
   };
 }
 
 // ---------- Trang học tương tác của một buổi ----------
-// 6 task do `sessionTasks` sinh ra được dựng thành 6 hoạt động bấm được: xem
+// 8 task do `sessionTasks` sinh ra được dựng thành 8 hoạt động bấm được: xem
 // video, nghe đọc mẫu, chọn đáp án, ghi âm. Nội dung lấy từ strand của buổi và
 // unit tương ứng trong catalog, không viết cứng cho bài nào.
 
@@ -1512,14 +1708,64 @@ function dayWordPool(program, day, lesson) {
   return [...new Set(words.map((word) => String(word).trim()).filter(Boolean))];
 }
 
+// Nguyên tắc 1 của trung tâm: không có từ đứng một mình. Mỗi từ phải được gắn
+// vào một cụm hoặc câu lấy từ chính gói bài, chỉ khi không tìm được mới ghép
+// mạo từ tối thiểu.
+// Khung câu dự phòng khi gói bài chưa có câu mẫu chứa từ đó. Vẫn phải là câu
+// hoàn chỉnh (nguyên tắc 1: không dạy từ trần), và phải đổi khung theo `variant`
+// để hai câu điền chỗ trống trong cùng một task không ra y hệt nhau.
+const WORD_FRAMES = [
+  (article, word) => `It's ${article} ${word}.`,
+  (article, word) => `I can see ${article} ${word}.`,
+  (article, word) => `I have ${article} ${word}.`,
+  (article, word) => `This is ${article} ${word}.`,
+];
+
+function wordInContext(word, lesson, variant = 0) {
+  const clean = String(word).trim();
+  const hit = (lesson.structure || []).find((line) =>
+    new RegExp(`\\b${clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line));
+  if (hit) return hit;
+  const article = /^[aeiou]/i.test(clean) ? "an" : "a";
+  return WORD_FRAMES[Math.abs(variant) % WORD_FRAMES.length](article, clean);
+}
+
+// Câu lệnh chuẩn hiện trên đầu mỗi task — chỉ lấy từ 7 mẫu đã duyệt.
+function instructionBar(task, note) {
+  if (!task?.instruction) return "";
+  return `
+    <div class="instruction-bar">
+      <span class="instruction-tag">${escapeHtml(task.instruction)}</span>
+      <span class="muted">${escapeHtml(note)}</span>
+    </div>
+  `;
+}
+
 function renderTaskPanel(context) {
   const { program, day, index, task, lesson, info, unitName } = context;
   const qid = (suffix) => `${program}|${day}|${suffix}`;
+  const focusStrand = info.fresh[0]
+    || info.active.find((strand) => strand.group === "story" || strand.group === "song")
+    || info.active.find((strand) => strand.group === "topic")
+    || info.active[0];
 
+  // Step 1-2 · Experience + Input — trẻ chỉ nghe và chỉ, chưa phải nói.
   if (index === 0) {
-    const lines = ["Hello! Good morning!", "How are you today?", "I'm ready to learn!"];
+    const cast = info.cast || castFor(focusStrand);
+    const lines = [
+      `Hello! I'm ${cast.name}.`,
+      ...(lesson.structure || []).slice(0, 2),
+    ].filter(Boolean);
     return `
-      ${renderVideo(videoLibrary.hello, "Hát theo và vẫy tay mỗi khi nghe “hello”.")}
+      ${instructionBar(task, "Nghe và chỉ vào tranh. Chưa cần nói.")}
+      <div class="cast-card">
+        <span class="cast-avatar">${escapeHtml(cast.name.slice(0, 1))}</span>
+        <div>
+          <strong>${escapeHtml(cast.name)}</strong>
+          <div class="muted">${escapeHtml(cast.note)} · tình huống: ${escapeHtml(focusStrand?.label || unitName)}</div>
+        </div>
+      </div>
+      ${renderVideo(videoFor(focusStrand) || videoLibrary.hello, `Story / Song mở bài: ${lesson.song}`)}
       <div class="say-list">
         ${lines.map((line) => `
           <div class="say-item">${sayBtn(line)}<span>${escapeHtml(line)}</span></div>
@@ -1528,38 +1774,19 @@ function renderTaskPanel(context) {
     `;
   }
 
+  // Step 3 · Notice — nhận ra từ và cụm từ. Từ luôn hiện kèm câu chứa nó.
   if (index === 1) {
-    const questions = [
-      reflexQuestions[(day * 2 - 2) % reflexQuestions.length],
-      reflexQuestions[(day * 2 - 1) % reflexQuestions.length],
-    ];
     return `
-      <p class="muted">Bấm 🔊 nghe câu hỏi, rồi chọn câu trả lời đúng.</p>
-      ${questions.map((question, i) => {
-        const bank = reflexBank[question] || { answer: "Yes, I do.", wrong: ["I'm fine.", "It's blue."] };
-        const options = [bank.answer, ...bank.wrong];
-        const order = seededOrder(options.length, day * 7 + i);
-        return `
-          <div class="quiz-block">
-            <div class="quiz-head">${sayBtn(question)}<strong>${escapeHtml(question)}</strong></div>
-            ${renderChoices(qid(`reflex-${i}`), order.map((o) => options[o]), bank.answer)}
-          </div>
-        `;
-      }).join("")}
-    `;
-  }
-
-  if (index === 2) {
-    const focus = info.fresh[0] || info.active.find((strand) => strand.group === "topic") || info.active[0];
-    const video = videoFor(focus);
-    return `
-      <p class="muted">Bấm vào từng thẻ để nghe đọc mẫu, rồi nói theo.</p>
+      ${instructionBar(task, "Bấm thẻ để nghe cả câu, rồi nói theo.")}
       <div class="flash-grid">
-        ${lesson.vocabulary.map((word) => {
+        ${lesson.vocabulary.map((word, wi) => {
+          const chunk = wordInContext(word, lesson, wi);
           const heard = state.taskAnswers[qid(`voc-${word}`)] === "heard";
           return `<button class="flash-card ${heard ? "heard" : ""}" data-action="flash"
-            data-qid="${escapeHtml(qid(`voc-${word}`))}" data-text="${escapeHtml(word)}">
-            <span class="flash-word">${escapeHtml(word)}</span><span class="flash-icon">🔊</span>
+            data-qid="${escapeHtml(qid(`voc-${word}`))}" data-text="${escapeHtml(chunk)}">
+            <span class="flash-word">${escapeHtml(word)}</span>
+            <span class="flash-chunk">${escapeHtml(chunk)}</span>
+            <span class="flash-icon">🔊</span>
           </button>`;
         }).join("")}
       </div>
@@ -1568,11 +1795,11 @@ function renderTaskPanel(context) {
           <div class="say-item">${sayBtn(line)}<span>${escapeHtml(line)}</span></div>
         `).join("")}
       </div>
-      ${renderVideo(video, focus ? `Ngữ cảnh cho: ${focus.label}` : "")}
     `;
   }
 
-  if (index === 3) {
+  // Step 4 + 8 · Join in + Listening — nghe rồi chọn.
+  if (index === 2) {
     const pool = dayWordPool(program, day, lesson);
     if (pool.length < 3) return `<p class="muted">${escapeHtml(task.detail)}</p>`;
     const order = seededOrder(pool.length, day * 13 + 5);
@@ -1585,16 +1812,48 @@ function renderTaskPanel(context) {
       return { answer, options: seededOrder(options.length, day * 3 + i).map((o) => options[o]) };
     });
     return `
-      <p class="muted">Bấm 🔊 để nghe một từ, rồi chọn đúng từ vừa nghe. Các từ lấy từ những bài em đã học.</p>
+      ${instructionBar(task, "Nghe cả câu rồi chọn từ em nghe được. Từ lấy từ các bài đã học.")}
       ${rounds.map((round, i) => `
         <div class="quiz-block">
-          <div class="quiz-head">${sayBtn(round.answer, "🔊 Nghe từ")}<span class="muted">Câu ${i + 1} / 3</span></div>
+          <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i), "🔊 Nghe câu")}<span class="muted">Câu ${i + 1} / 3</span></div>
           ${renderChoices(qid(`listen-${i}`), round.options, round.answer)}
         </div>
       `).join("")}
     `;
   }
 
+  // Step 5 · Use — hỏi đáp. Phản xạ 8 câu của trung tâm nằm ở đây vì đây đúng
+  // là mẫu "Ask and answer", không phải phần khởi động cho có.
+  if (index === 3) {
+    const questions = [
+      reflexQuestions[(day * 2 - 2) % reflexQuestions.length],
+      reflexQuestions[(day * 2 - 1) % reflexQuestions.length],
+    ];
+    const pairLine = lesson.structure[day % Math.max(lesson.structure.length, 1)] || lesson.structure[0] || "";
+    return `
+      ${instructionBar(task, "Nghe câu hỏi, chọn câu trả lời, rồi quay sang bạn hỏi lại.")}
+      ${questions.map((question, i) => {
+        const bank = reflexBank[question] || { answer: "Yes, I do.", wrong: ["I'm fine.", "It's blue."] };
+        const options = [bank.answer, ...bank.wrong];
+        const order = seededOrder(options.length, day * 7 + i);
+        return `
+          <div class="quiz-block">
+            <div class="quiz-head">${sayBtn(question)}<strong>${escapeHtml(question)}</strong></div>
+            ${renderChoices(qid(`reflex-${i}`), order.map((o) => options[o]), bank.answer)}
+          </div>
+        `;
+      }).join("")}
+      ${pairLine ? `
+        <div class="pair-card">
+          <div class="pair-tag">Pair work</div>
+          <div class="say-item">${sayBtn(pairLine)}<span>${escapeHtml(pairLine)}</span></div>
+          <p class="muted">Nói câu này với bạn bên cạnh, rồi đổi vai.</p>
+        </div>
+      ` : ""}
+    `;
+  }
+
+  // Step 6 · Phonics & Early Reading — âm → động tác → nhận diện → ghép vần → đọc.
   if (index === 4) {
     const letters = [...new Set(lesson.phonics.map(soundLetter).filter(Boolean))];
     const target = letters[day % Math.max(letters.length, 1)] || "s";
@@ -1606,8 +1865,11 @@ function renderTaskPanel(context) {
     const phonicsGroup = lesson.phonics.some((p) => /ck|e|h|r|m|d/.test(soundLetter(p))) && info.active.some((s) => strandVideo[s.id] === "jolly2")
       ? videoLibrary.jolly2
       : videoLibrary.jolly1;
+    // Blending là bước bắt buộc trong chuỗi phonics của trung tâm: đọc rời từng
+    // âm rồi trượt lại thành từ, chứ không phải viết chữ lặp lại.
+    const blendWords = (phonicsWords[target] || []).filter((word) => word.length <= 4).slice(0, 3);
     return `
-      <p class="muted">Bấm từng chữ để nghe âm và từ ví dụ.</p>
+      ${instructionBar(task, "Bấm chữ để nghe âm, rồi ghép âm thành từ.")}
       <div class="letter-row">
         ${letters.map((letter) => {
           const sample = (phonicsWords[letter] || []).slice(0, 3);
@@ -1618,6 +1880,16 @@ function renderTaskPanel(context) {
           </button>`;
         }).join("")}
       </div>
+      ${blendWords.length ? `
+        <div class="blend-row">
+          ${blendWords.map((word) => `
+            <button class="blend-tile" data-action="say" data-text="${escapeHtml(`${word.split("").join(" ")} ... ${word}`)}">
+              <span class="blend-sounds">${escapeHtml(word.split("").join(" - "))}</span>
+              <span class="blend-word">→ ${escapeHtml(word)}</span>
+            </button>
+          `).join("")}
+        </div>
+      ` : ""}
       <div class="quiz-block">
         <div class="quiz-head"><strong>Từ nào bắt đầu bằng chữ “${escapeHtml(target)}”?</strong></div>
         ${renderChoices(qid("phonics"), seededOrder(options.length, day * 5).map((o) => options[o]), right)}
@@ -1626,20 +1898,94 @@ function renderTaskPanel(context) {
     `;
   }
 
-  const line = lesson.structure[0] || "I like English!";
-  return `
-    <div class="quiz-block">
-      <div class="quiz-head">${sayBtn(line, "🔊 Nghe mẫu")}<strong>${escapeHtml(line)}</strong></div>
-      <p class="muted">Nghe mẫu, bấm ghi âm và nói lại câu trên. Nghe lại xem đã giống chưa.</p>
-      <div class="row-actions">
-        ${recorder.active
-          ? `<button class="primary-btn recording" data-action="record-stop">⏹ Dừng ghi</button>`
-          : `<button class="primary-btn" data-action="record-start">🎙 Ghi âm câu của em</button>`}
+  // Step 7 · Reading & Writing — đọc câu đã nghe quen rồi chọn từ còn thiếu.
+  if (index === 5) {
+    const pool = [...new Set(lesson.vocabulary.map((word) => String(word).trim()).filter(Boolean))];
+    const order = seededOrder(Math.max(pool.length, 1), day * 17 + 3);
+    const rounds = [];
+    for (let i = 0; i < 2; i += 1) {
+      const answer = pool[order[i % Math.max(pool.length, 1)]] || "book";
+      let gapSource = wordInContext(answer, lesson, day + i);
+      let gap = gapSource.replace(new RegExp(`\\b${answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i"), "______");
+      // Nếu hai câu điền ra giống hệt nhau (kho từ ngắn, hoặc cả hai cùng khớp
+      // một câu mẫu) thì đổi sang khung câu dự phòng khác để trẻ không thấy hai
+      // dòng y hệt.
+      if (rounds[0] && rounds[0].gap === gap) {
+        const article = /^[aeiou]/i.test(answer) ? "an" : "a";
+        gapSource = WORD_FRAMES[(day + i + 1) % WORD_FRAMES.length](article, answer);
+        gap = gapSource.replace(new RegExp(`\\b${answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i"), "______");
+      }
+      const others = pool.filter((word) => word.toLowerCase() !== answer.toLowerCase());
+      const distractors = [...new Set([others[(i * 2) % Math.max(others.length, 1)], others[(i * 2 + 1) % Math.max(others.length, 1)]])]
+        .filter(Boolean);
+      const options = [answer, ...distractors];
+      rounds.push({ answer, gap, options: seededOrder(options.length, day * 9 + i).map((o) => options[o]) });
+    }
+    return `
+      ${instructionBar(task, "Đọc câu, chọn từ đúng để điền vào chỗ trống.")}
+      ${rounds.map((round, i) => `
+        <div class="quiz-block">
+          <div class="quiz-head"><span class="read-line">${escapeHtml(round.gap)}</span></div>
+          ${renderChoices(qid(`read-${i}`), round.options, round.answer)}
+        </div>
+      `).join("")}
+      <div class="home-card">
+        <div class="pair-tag">${escapeHtml(INSTRUCTION.drawColour)} · về nhà</div>
+        <p class="muted">Vẽ và tô một hình về ${escapeHtml(unitName)}, rồi viết tên đồ vật bên dưới.</p>
       </div>
-      ${recorder.error ? `<div class="choice-feedback miss">${escapeHtml(recorder.error)}</div>` : ""}
-      ${recorder.url && !recorder.active ? `<audio class="record-play" controls src="${recorder.url}"></audio>` : ""}
+    `;
+  }
+
+  // Step 9 · Speaking — nghe mẫu → nói theo → nói về mình.
+  if (index === 6) {
+    const line = lesson.structure[0] || "I like English!";
+    const own = lesson.structure[1] || line;
+    return `
+      ${instructionBar(task, "Nghe mẫu, nói lại, rồi nói câu của chính em.")}
+      <div class="quiz-block">
+        <div class="quiz-head">${sayBtn(line, "🔊 Nghe mẫu")}<strong>${escapeHtml(line)}</strong></div>
+        <p class="muted">Bấm ghi âm và nói lại câu trên. Nghe lại xem đã giống chưa.</p>
+        <div class="row-actions">
+          ${recorder.active
+            ? `<button class="primary-btn recording" data-action="record-stop">⏹ Dừng ghi</button>`
+            : `<button class="primary-btn" data-action="record-start">🎙 Ghi âm câu của em</button>`}
+        </div>
+        ${recorder.error ? `<div class="choice-feedback miss">${escapeHtml(recorder.error)}</div>` : ""}
+        ${recorder.url && !recorder.active ? `<audio class="record-play" controls src="${recorder.url}"></audio>` : ""}
+      </div>
+      <div class="pair-card">
+        <div class="pair-tag">Personalisation</div>
+        <div class="say-item">${sayBtn(own)}<span>${escapeHtml(own)}</span></div>
+        <p class="muted">Đổi từ trong câu thành thứ của riêng em rồi nói lại.</p>
+      </div>
+    `;
+  }
+
+  // Step 10 · Cambridge Checkpoint — kiểm tra nhẹ theo chủ đề Starters.
+  const topic = info.starter || starterTopicFor(focusStrand);
+  const bank = lesson.vocabulary.map((word) => String(word).trim()).filter(Boolean);
+  const checkOrder = seededOrder(Math.max(bank.length, 1), day * 23 + 7);
+  const checkRounds = [0, 1].map((i) => {
+    const answer = bank[checkOrder[i % Math.max(bank.length, 1)]] || "book";
+    const others = bank.filter((word) => word.toLowerCase() !== answer.toLowerCase());
+    const distractors = [...new Set([others[i % Math.max(others.length, 1)], others[(i + 2) % Math.max(others.length, 1)]])]
+      .filter(Boolean);
+    const options = [answer, ...distractors];
+    return { answer, options: seededOrder(options.length, day * 29 + i).map((o) => options[o]) };
+  });
+  return `
+    ${instructionBar(task, `Dạng bài Cambridge Starters — chủ đề “${topic}”.`)}
+    <div class="checkpoint-head">
+      <span class="checkpoint-tag">Starters</span>
+      <strong>${escapeHtml(topic)}</strong>
     </div>
-    ${renderVideo(videoLibrary.goodbye, "Hát tạm biệt và vẫy tay trước khi tắt máy.")}
+    ${checkRounds.map((round, i) => `
+      <div class="quiz-block">
+        <div class="quiz-head">${sayBtn(wordInContext(round.answer, lesson, day + i * 2), "🔊 Listen")}<span class="muted">Question ${i + 1} / 2</span></div>
+        ${renderChoices(qid(`check-${i}`), round.options, round.answer)}
+      </div>
+    `).join("")}
+    ${renderVideo(videoLibrary.goodbye, "Hát Goodbye Song và nhận task về nhà.")}
   `;
 }
 
@@ -1665,7 +2011,10 @@ function renderTaskRunner(program, day, unitName, tasks, info) {
               <button class="task-panel-head" data-action="open-task" data-task="${index}">
                 <span class="task-index">${isDone ? "✓" : index + 1}</span>
                 <span class="task-panel-title">
-                  <strong>${escapeHtml(task.title)}</strong>
+                  <span class="task-line">
+                    <strong>${escapeHtml(task.title)}</strong>
+                    ${task.step ? `<span class="task-step">${escapeHtml(task.step)}</span>` : ""}
+                  </span>
                   <span class="muted">${escapeHtml(task.detail)}</span>
                 </span>
                 <span class="task-time">${task.time}</span>
@@ -1675,7 +2024,7 @@ function renderTaskRunner(program, day, unitName, tasks, info) {
                   ${renderTaskPanel({ program, day, index, task, lesson, info, unitName })}
                   <div class="row-actions task-nav">
                     <button class="ghost-btn" data-action="open-task" data-task="${Math.max(0, index - 1)}" ${index === 0 ? "disabled" : ""}>← Task trước</button>
-                    <button class="primary-btn" data-action="task-done" data-program="${escapeHtml(program)}" data-day="${day}" data-task="${index}">
+                    <button class="primary-btn" data-action="task-done" data-program="${escapeHtml(program)}" data-day="${day}" data-task="${index}" data-total="${tasks.length}">
                       ${isDone ? "Đã xong · làm lại sau" : "Xong task này"}
                     </button>
                   </div>
@@ -1765,18 +2114,26 @@ function renderSpiralPlan() {
         <span class="pill">${SPIRAL_MILESTONES.includes(selectedDay) ? "Buổi mốc" : "45 phút"}</span>
       </div>
       <div class="spiral-chips">
-        ${activeStrands.map((strand) => `
+        ${activeStrands.map((strand) => {
+          const role = strandRole(strand, selectedDay);
+          return `
           <span class="spiral-chip ${strand.group} ${strand.intro === selectedDay ? "intro" : ""}">
-            ${escapeHtml(strand.label)}${strand.intro === selectedDay ? " · mới" : ""}
+            ${escapeHtml(strand.label)}
+            <em class="role-chip ${role}">${escapeHtml(ROLE_META[role].label)}</em>
           </span>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
       <div class="session-tasks">
         ${tasks.map((task, idx) => `
           <div class="task-item ${task.tone}">
             <div class="task-index">${idx + 1}</div>
             <div class="task-body">
-              <strong>${escapeHtml(task.title)}</strong>
+              <div class="task-line">
+                <strong>${escapeHtml(task.title)}</strong>
+                ${task.step ? `<span class="task-step">${escapeHtml(task.step)}</span>` : ""}
+              </div>
+              ${task.instruction ? `<div class="task-instruction">${escapeHtml(task.instruction)}</div>` : ""}
               <div class="muted">${escapeHtml(task.detail)}</div>
             </div>
             <span class="task-time">${task.time}</span>
@@ -2339,7 +2696,7 @@ function pageCopy() {
   if (state.currentRole === "student") {
     const roadmap = state.roadmapProgram
       ? state.roadmapDay
-        ? ["Roadmap", `${state.roadmapProgram}`, "Trang học của buổi: 6 task, gói bài học và luồng 8 bước."]
+        ? ["Roadmap", `${state.roadmapProgram}`, "Trang học của buổi: 8 task chạy đủ 10 Step theo khung của trung tâm."]
         : ["Roadmap", `${state.roadmapProgram}`, "Chọn một Day để mở trang học của buổi đó."]
       : ["Roadmap", "Chọn chương trình", `Bấm vào một chương trình để mở danh sách Day 1 → Day ${SPIRAL_SESSIONS}.`];
     const pages = {
@@ -2623,8 +2980,10 @@ function bindEvents() {
         addStars(5);
         chime("ok");
       }
-      // Xong task thì mở luôn task kế tiếp cho khỏi phải bấm thêm.
-      state.activeTask = Math.min(index + 1, 5);
+      // Xong task thì mở luôn task kế tiếp cho khỏi phải bấm thêm. Số task đọc
+      // từ nút bấm để không phải sửa chỗ này mỗi lần khung buổi học đổi.
+      const total = Number(target.dataset.total) || 8;
+      state.activeTask = Math.min(index + 1, total - 1);
       saveState();
       render();
       return;

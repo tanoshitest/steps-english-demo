@@ -649,6 +649,35 @@ textarea {
 .task-item.repeat { border-left-color: var(--amber); }
 .task-item.phonics { border-left-color: #7c3aed; }
 .task-item.milestone { border-left-color: #dc2626; }
+.task-item.literacy { border-left-color: #0d9488; }
+.task-item.check { border-left-color: #ca8a04; }
+
+/* Nhãn Step và mẫu câu lệnh — hai thứ giáo viên cần thấy ngay trong danh sách
+   task để biết task này ứng với Step nào của khung 10 Step. */
+.task-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.task-instruction {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f766e;
+}
 
 .task-index {
   width: 24px;
@@ -2028,6 +2057,8 @@ body.is-admin .logout-btn {
 .task-panel.repeat { border-left-color: var(--amber); }
 .task-panel.phonics { border-left-color: #7c3aed; }
 .task-panel.milestone { border-left-color: #dc2626; }
+.task-panel.literacy { border-left-color: #0d9488; }
+.task-panel.check { border-left-color: #ca8a04; }
 .task-panel.open { box-shadow: 0 10px 30px rgba(13, 42, 89, 0.1); }
 .task-panel.done .task-index { background: var(--green); color: white; }
 
@@ -2314,3 +2345,193 @@ body.is-admin .logout-btn {
   background: color-mix(in srgb, var(--green) 10%, white);
   border: 1px solid color-mix(in srgb, var(--green) 35%, white);
 }
+
+/* --- Khung chuyên môn: câu lệnh, nhân vật, ghép vần, đọc viết, checkpoint --- */
+
+.instruction-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #0d9488 8%, white);
+  border: 1px solid color-mix(in srgb, #0d9488 24%, white);
+}
+
+.instruction-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f766e;
+  background: white;
+  border: 1px solid color-mix(in srgb, #0d9488 35%, white);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.instruction-bar .muted { font-size: 12px; }
+
+.cast-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+
+.cast-avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flash-chunk {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.blend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.blend-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  border: 1px dashed #7c3aed;
+  border-radius: var(--radius-sm);
+  background: #f8f5ff;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.blend-tile:hover { background: #f1ebff; }
+.blend-sounds { font-size: 13px; font-weight: 700; color: #7c3aed; letter-spacing: 0.08em; }
+.blend-word { font-size: 15px; font-weight: 800; }
+
+.pair-card,
+.home-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+
+.pair-tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.pair-card .muted,
+.home-card .muted { margin: 8px 0 0; font-size: 13px; }
+
+.read-line {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.checkpoint-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.checkpoint-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a16207;
+  background: #fef9c3;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* --- Language Recycling Map --- */
+
+.recycle-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.recycle-col {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: white;
+}
+
+.recycle-col.new { border-top-color: var(--blue); }
+.recycle-col.recycle { border-top-color: var(--amber); }
+.recycle-col.reuse { border-top-color: var(--green); }
+.recycle-col.daily { border-top-color: var(--muted); }
+.recycle-col.milestone { border-top-color: #dc2626; }
+
+.recycle-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.recycle-head .muted { font-size: 12px; line-height: 1.4; }
+
+.recycle-col ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.role-chip {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.role-chip.new { color: var(--blue); background: var(--blue-soft); }
+.role-chip.recycle { color: #b45309; background: #fef3c7; }
+.role-chip.reuse { color: #047857; background: #d1fae5; }
+.role-chip.daily { color: var(--muted); background: rgba(20, 54, 110, 0.08); }
+.role-chip.milestone { color: #b91c1c; background: #fee2e2; }
+
+.spiral-chip .role-chip { margin-left: 6px; }

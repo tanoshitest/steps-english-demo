@@ -1357,6 +1357,32 @@ function renderCrumbs(trail) {
   `;
 }
 
+// Tên tiếng Việt của từng Step, để phụ huynh đọc thẻ Day là biết con làm gì mà
+// không cần tra bảng 10 Step. Khoá theo `task.step` chứ không theo thứ tự task,
+// nên đổi thứ tự task trong buổi cũng không lệch nhãn.
+const STEP_PLAIN = {
+  "Step 1-2": "Nghe & làm quen",
+  "Step 3": "Nhận diện từ",
+  "Step 4 + 8": "Nghe & làm theo",
+  "Step 5": "Hỏi – đáp",
+  "Step 6": "Phonics",
+  "Step 7": "Đọc – viết",
+  "Step 9": "Nói",
+  "Step 10": "Kiểm tra",
+};
+
+function taskPlain(task) {
+  return STEP_PLAIN[task.step] || task.title;
+}
+
+// Các task đã hoàn thành của một buổi. Cùng khoá "program|day" mà trang học ghi
+// vào state.taskDone, nên thẻ Day và trang học luôn khớp số. Trả về Set chỉ số
+// vì học sinh có thể làm nhảy cóc, không nhất thiết xong 1-2-3 theo thứ tự.
+function dayDoneSet(program, day, total) {
+  const done = state.taskDone[`${program}|${day}`] || [];
+  return new Set(done.filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < total));
+}
+
 function renderRoadmapDays(program) {
   const spiral = buildSpiral(program);
   if (!spiral) return renderProgramUnits(program);
@@ -1376,23 +1402,52 @@ function renderRoadmapDays(program) {
       <div class="day-list">
         ${days.map((day) => {
           const info = sessionSummary(program, day);
-          const status = day < current ? "done" : day === current ? "current" : "locked";
-          const progress = status === "done" ? 100 : status === "current" ? state.unitProgress : 0;
+          const tasks = sessionTasks(program, day);
+          const total = tasks.length;
+          const doneSet = dayDoneSet(program, day, total);
+          const done = doneSet.size;
+          // Trạng thái đọc từ số task đã làm thật, không đoán theo vị trí buổi —
+          // để phụ huynh thấy đúng con đang ở đâu.
+          const status = total && done >= total ? "done" : done > 0 || day === current ? "current" : "locked";
+          const progress = total ? Math.round((done / total) * 100) : 0;
+          const minutes = tasks.reduce((sum, task) => sum + (parseInt(task.time, 10) || 0), 0);
           const chips = info.active.filter((strand) => !strand.daily);
           const head = (day - 1) % SPIRAL_CHAPTER === 0
             ? `<div class="day-chapter">Chặng ${chapterOf(day)}/${SPIRAL_CHAPTERS} · Buổi ${day}–${Math.min(day + SPIRAL_CHAPTER - 1, spiral.sessions)}</div>`
             : "";
           return `
             ${head}
-            <button class="day-row ${day === current ? "current" : ""} ${info.milestone ? "milestone" : ""}"
+            <button class="day-row ${day === current ? "current" : ""} ${info.milestone ? "milestone" : ""} ${status === "done" ? "finished" : ""}"
               data-action="open-day" data-program="${escapeHtml(program)}" data-day="${day}">
               <div class="day-row-head">
                 <span class="day-num">Day ${day}</span>
                 <strong class="day-title">${escapeHtml(info.title)}</strong>
-                <span class="status ${status}">${status === "done" ? "xong" : status === "current" ? "đang học" : "chưa mở"}</span>
+                <span class="status ${status}">${status === "done" ? "hoàn thành" : status === "current" ? "đang học" : "chưa học"}</span>
               </div>
-              <div class="muted day-unit">${info.unit ? `Unit: ${escapeHtml(info.unit)}` : "Nếp lớp, phản xạ và trò chơi ngôn ngữ"}</div>
-              <div class="progress"><span style="width:${progress}%"></span></div>
+              <div class="muted day-unit">${info.unit ? `Chủ điểm: ${escapeHtml(info.unit)}` : "Nếp lớp, phản xạ và trò chơi ngôn ngữ"}</div>
+
+              <div class="day-progress">
+                <div class="day-progress-top">
+                  <span class="day-count"><b>${done}</b>/${total} task đã làm</span>
+                  <span class="day-time">≈ ${minutes} phút</span>
+                </div>
+                <div class="progress"><span style="width:${progress}%"></span></div>
+              </div>
+
+              <div class="day-steps">
+                ${tasks.map((task, idx) => {
+                  const isDone = doneSet.has(idx);
+                  // Chỉ gợi "task tiếp theo" ở buổi đang làm dở, để 20 thẻ không
+                  // cùng lúc nhấp nháy một chấm xanh gây rối mắt.
+                  const isNext = done > 0 && !isDone && idx === tasks.findIndex((_, i) => !doneSet.has(i));
+                  return `
+                  <span class="day-step ${isDone ? "done" : isNext ? "next" : ""}" title="${escapeHtml(task.title)} — ${escapeHtml(task.step)}">
+                    <i>${isDone ? "✓" : idx + 1}</i>${escapeHtml(taskPlain(task))}
+                  </span>
+                `;
+                }).join("")}
+              </div>
+
               <div class="spiral-chips">
                 ${chips.length ? chips.map((strand) => {
                   const role = strandRole(strand, day);

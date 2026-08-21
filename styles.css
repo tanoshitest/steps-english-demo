@@ -2082,18 +2082,30 @@ body.is-admin .logout-btn {
   background: #f8fbff;
 }
 
+/* --crop: phần mép trên bị cắt bỏ, để giấu thanh tiêu đề của YouTube khi bé
+   tạm dừng giữa chừng. Đổi một số này là cả khung tự tính lại. */
 .media-frame {
+  --crop: .12;
   position: relative;
-  padding-top: 56.25%;
+  padding-top: calc(56.25% * (1 - var(--crop)));
   background: #0e1a33;
+  overflow: hidden;
 }
 
+/* Iframe cao hơn khung rồi kéo ngược lên: mép trên tràn ra ngoài và bị cắt,
+   mép dưới vẫn khớp đúng khung nên không mất thanh điều khiển. */
 .media-frame iframe {
   position: absolute;
-  inset: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  top: calc(-100% * var(--crop) / (1 - var(--crop)));
+  height: calc(100% / (1 - var(--crop)));
   border: 0;
+}
+
+/* Player nhỏ thì thanh tiêu đề chiếm tỉ lệ cao hơn, phải cắt sâu hơn một chút. */
+@media (max-width: 700px) {
+  .media-frame { --crop: .17; }
 }
 
 /* Ảnh bìa + nút play của mình, đè kín khung khi chưa bấm. */
@@ -2103,6 +2115,9 @@ body.is-admin .logout-btn {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Kéo điểm neo xuống để ảnh bìa lộ đúng phần hình mà iframe sẽ chiếu,
+     bấm play không bị nhảy hình. */
+  object-position: center 64%;
   display: block;
 }
 
